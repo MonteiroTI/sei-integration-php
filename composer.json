@@ -1,0 +1,57 @@
+{
+    "name": "monteiroti/sei-integration",
+    "description": "Cliente PHP para os WebServices SOAP do SEI e do SIP 5.0, com integração opcional ao Laravel.",
+    "type": "library",
+    "license": "proprietary",
+    "keywords": ["sei", "sip", "soap", "processo eletrônico", "laravel"],
+    "require": {
+        "php": "^8.2",
+        "ext-mbstring": "*",
+        "ext-soap": "*"
+    },
+    "require-dev": {
+        "illuminate/support": "^11.0|^12.0",
+        "laravel/pint": "^1.18",
+        "orchestra/testbench": "^9.0|^10.0",
+        "pestphp/pest": "^3.0|^4.0",
+        "phpstan/phpstan": "^2.0"
+    },
+    "suggest": {
+        "illuminate/support": "Necessário para usar a integração com o Laravel (ServiceProvider, Facades, cache e logs)."
+    },
+    "autoload": {
+        "psr-4": {
+            "MonteiroTi\\Sei\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "MonteiroTi\\Sei\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "pest --exclude-group=integration",
+        "test:integration": "pest --group=integration",
+        "analyse": "phpstan analyse --memory-limit=1G",
+        "format": "pint"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "MonteiroTi\\Sei\\Laravel\\SeiServiceProvider"
+            ],
+            "aliases": {
+                "Sei": "MonteiroTi\\Sei\\Laravel\\Facades\\Sei",
+                "Sip": "MonteiroTi\\Sei\\Laravel\\Facades\\Sip"
+            }
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

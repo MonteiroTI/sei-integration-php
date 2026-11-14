@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- WSDL reduzida no estilo RPC/encoded do SEI, usada só nos testes do transporte. -->
+<wsdl:definitions name="SeiWS" targetNamespace="Sei"
+    xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+    xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:tns="Sei">
+  <wsdl:types>
+    <xsd:schema targetNamespace="Sei">
+      <xsd:import namespace="http://schemas.xmlsoap.org/soap/encoding/"/>
+      <xsd:complexType name="Unidade">
+        <xsd:all>
+          <xsd:element name="IdUnidade" type="xsd:string"/>
+          <xsd:element name="Sigla" type="xsd:string"/>
+          <xsd:element name="Descricao" type="xsd:string"/>
+          <xsd:element name="SinProtocolo" type="xsd:string"/>
+          <xsd:element name="SinArquivamento" type="xsd:string"/>
+          <xsd:element name="SinOuvidoria" type="xsd:string"/>
+        </xsd:all>
+      </xsd:complexType>
+      <xsd:complexType name="ArrayOfUnidade">
+        <xsd:complexContent>
+          <xsd:restriction base="soapenc:Array">
+            <xsd:attribute ref="soapenc:arrayType" wsdl:arrayType="tns:Unidade[]"/>
+          </xsd:restriction>
+        </xsd:complexContent>
+      </xsd:complexType>
+      <xsd:complexType name="ArrayOfIdUnidade">
+        <xsd:complexContent>
+          <xsd:restriction base="soapenc:Array">
+            <xsd:attribute ref="soapenc:arrayType" wsdl:arrayType="xsd:string[]"/>
+          </xsd:restriction>
+        </xsd:complexContent>
+      </xsd:complexType>
+      <xsd:complexType name="Assunto">
+        <xsd:all>
+          <xsd:element name="CodigoEstruturado" type="xsd:string"/>
+          <xsd:element name="Descricao" type="xsd:string"/>
+        </xsd:all>
+      </xsd:complexType>
+      <xsd:complexType name="ArrayOfAssunto">
+        <xsd:complexContent>
+          <xsd:restriction base="soapenc:Array">
+            <xsd:attribute ref="soapenc:arrayType" wsdl:arrayType="tns:Assunto[]"/>
+          </xsd:restriction>
+        </xsd:complexContent>
+      </xsd:complexType>
+      <xsd:complexType name="Procedimento">
+        <xsd:all>
+          <xsd:element name="IdTipoProcedimento" type="xsd:string"/>
+          <xsd:element name="NumeroProtocolo" type="xsd:string"/>
+          <xsd:element name="DataAutuacao" type="xsd:string"/>
+          <xsd:element name="Especificacao" type="xsd:string"/>
+          <xsd:element name="IdTipoPrioridade" type="xsd:string"/>
+          <xsd:element name="Assuntos" type="tns:ArrayOfAssunto"/>
+          <xsd:element name="Interessados" type="xsd:anyType"/>
+          <xsd:element name="Observacao" type="xsd:string"/>
+          <xsd:element name="NivelAcesso" type="xsd:string"/>
+          <xsd:element name="IdHipoteseLegal" type="xsd:string"/>
+        </xsd:all>
+      </xsd:complexType>
+      <xsd:complexType name="RetornoGeracaoProcedimento">
+        <xsd:all>
+          <xsd:element name="IdProcedimento" type="xsd:string"/>
+          <xsd:element name="ProcedimentoFormatado" type="xsd:string"/>
+          <xsd:element name="LinkAcesso" type="xsd:string"/>
+          <xsd:element name="RetornoInclusaoDocumentos" type="xsd:anyType"/>
+        </xsd:all>
+      </xsd:complexType>
+    </xsd:schema>
+  </wsdl:types>
+
+  <wsdl:message name="listarUnidadesRequest">
+    <wsdl:part name="SiglaSistema" type="xsd:string"/>
+    <wsdl:part name="IdentificacaoServico" type="xsd:string"/>
+    <wsdl:part name="IdTipoProcedimento" type="xsd:string"/>
+    <wsdl:part name="IdSerie" type="xsd:string"/>
+  </wsdl:message>
+  <wsdl:message name="listarUnidadesResponse">
+    <wsdl:part name="parametros" type="tns:ArrayOfUnidade"/>
+  </wsdl:message>
+  <wsdl:message name="enviarProcessoRequest">
+    <wsdl:part name="SiglaSistema" type="xsd:string"/>
+    <wsdl:part name="IdentificacaoServico" type="xsd:string"/>
+    <wsdl:part name="IdUnidade" type="xsd:string"/>
+    <wsdl:part name="ProtocoloProcedimento" type="xsd:string"/>
+    <wsdl:part name="UnidadesDestino" type="tns:ArrayOfIdUnidade"/>
+    <wsdl:part name="SinManterAbertoUnidade" type="xsd:string"/>
+    <wsdl:part name="SinRemoverAnotacao" type="xsd:string"/>
+    <wsdl:part name="SinEnviarEmailNotificacao" type="xsd:string"/>
+    <wsdl:part name="DataRetornoProgramado" type="xsd:string"/>
+    <wsdl:part name="DiasRetornoProgramado" type="xsd:string"/>
+    <wsdl:part name="SinDiasUteisRetornoProgramado" type="xsd:string"/>
+    <wsdl:part name="SinReabrir" type="xsd:string"/>
+  </wsdl:message>
+  <wsdl:message name="enviarProcessoResponse">
+    <wsdl:part name="parametros" type="xsd:boolean"/>
+  </wsdl:message>
+  <wsdl:message name="gerarProcedimentoRequest">
+    <wsdl:part name="SiglaSistema" type="xsd:string"/>
+    <wsdl:part name="IdentificacaoServico" type="xsd:string"/>
+    <wsdl:part name="IdUnidade" type="xsd:string"/>
+    <wsdl:part name="Procedimento" type="tns:Procedimento"/>
+  </wsdl:message>
+  <wsdl:message name="gerarProcedimentoResponse">
+    <wsdl:part name="parametros" type="tns:RetornoGeracaoProcedimento"/>
+  </wsdl:message>
+
+  <wsdl:portType name="SeiPortType">
+    <wsdl:operation name="listarUnidades">
+      <wsdl:input message="tns:listarUnidadesRequest"/>
+      <wsdl:output message="tns:listarUnidadesResponse"/>
+    </wsdl:operation>
+    <wsdl:operation name="enviarProcesso">
+      <wsdl:input message="tns:enviarProcessoRequest"/>
+      <wsdl:output message="tns:enviarProcessoResponse"/>
+    </wsdl:operation>
+    <wsdl:operation name="gerarProcedimento">
+      <wsdl:input message="tns:gerarProcedimentoRequest"/>
+      <wsdl:output message="tns:gerarProcedimentoResponse"/>
+    </wsdl:operation>
+  </wsdl:portType>
+
+  <wsdl:binding name="SeiBinding" type="tns:SeiPortType">
+    <soap:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="listarUnidades">
+      <soap:operation soapAction="SeiAction"/>
+      <wsdl:input><soap:body namespace="Sei" use="encoded" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/></wsdl:input>
+      <wsdl:output><soap:body namespace="Sei" use="encoded" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="enviarProcesso">
+      <soap:operation soapAction="SeiAction"/>
+      <wsdl:input><soap:body namespace="Sei" use="encoded" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/></wsdl:input>
+      <wsdl:output><soap:body namespace="Sei" use="encoded" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="gerarProcedimento">
+      <soap:operation soapAction="SeiAction"/>
+      <wsdl:input><soap:body namespace="Sei" use="encoded" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/></wsdl:input>
+      <wsdl:output><soap:body namespace="Sei" use="encoded" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/></wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+
+  <wsdl:service name="SeiService">
+    <wsdl:port name="SeiPortService" binding="tns:SeiBinding">
+      <soap:address location="http://sei.test/sei/ws/SeiWS.php"/>
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

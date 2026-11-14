@@ -1,0 +1,97 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Conexão SEI padrão
+    |--------------------------------------------------------------------------
+    |
+    | Cada conexão representa um par sistema/serviço cadastrado no SEI
+    | (Administração > Sistemas > Serviços). Use várias conexões para
+    | órgãos, ambientes (homologação/produção) ou serviços diferentes.
+    |
+    */
+
+    'default' => env('SEI_CONNECTION', 'default'),
+
+    'connections' => [
+
+        'default' => [
+            // https://sei.orgao.gov.br/sei/controlador_ws.php?servico=sei
+            'wsdl' => env('SEI_WSDL'),
+            // Sigla do sistema cadastrado no SEI
+            'sigla_sistema' => env('SEI_SIGLA_SISTEMA'),
+            // Chave de acesso gerada para o serviço (parâmetro IdentificacaoServico)
+            'identificacao_servico' => env('SEI_IDENTIFICACAO_SERVICO'),
+            // Unidade usada quando a chamada não informa outra (naUnidade())
+            'id_unidade' => env('SEI_ID_UNIDADE'),
+
+            // Endpoint alternativo ao declarado na WSDL (ex.: atrás de proxy reverso)
+            'location' => env('SEI_LOCATION'),
+            // Charset do HTML de documentos gerados antes do Base64: UTF-8 ou ISO-8859-1
+            'conteudo_charset' => env('SEI_CONTEUDO_CHARSET', 'UTF-8'),
+            'timeout' => (int) env('SEI_TIMEOUT', 60),
+            'connection_timeout' => (int) env('SEI_CONNECTION_TIMEOUT', 10),
+            'verify_ssl' => (bool) env('SEI_VERIFY_SSL', true),
+            'wsdl_cache' => WSDL_CACHE_BOTH,
+            // Tamanho de cada parte em Documentos::enviarArquivo() (bytes)
+            'upload_chunk_size' => 5 * 1024 * 1024,
+            'soap_options' => [],
+        ],
+
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | SIP
+    |--------------------------------------------------------------------------
+    */
+
+    'sip' => [
+        'default' => env('SIP_CONNECTION', 'default'),
+
+        'connections' => [
+            'default' => [
+                // https://sip.orgao.gov.br/sip/controlador_ws.php?servico=sip
+                'wsdl' => env('SIP_WSDL'),
+                'chave_acesso' => env('SIP_CHAVE_ACESSO'),
+                'id_sistema' => env('SIP_ID_SISTEMA'),
+                'timeout' => (int) env('SIP_TIMEOUT', 60),
+                'verify_ssl' => (bool) env('SIP_VERIFY_SSL', true),
+            ],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cache dos catálogos (listarUnidades, listarSeries, listarTiposProcedimento, ...)
+    |--------------------------------------------------------------------------
+    */
+
+    'cache' => [
+        'enabled' => (bool) env('SEI_CACHE', true),
+        'store' => env('SEI_CACHE_STORE'),
+        'ttl' => (int) env('SEI_CACHE_TTL', 86400),
+        'prefix' => 'sei',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Logs e eventos
+    |--------------------------------------------------------------------------
+    |
+    | Os logs mascaram a chave de acesso e resumem conteúdos em Base64.
+    |
+    */
+
+    'log' => [
+        'enabled' => (bool) env('SEI_LOG', false),
+        'channel' => env('SEI_LOG_CHANNEL'),
+    ],
+
+    'events' => (bool) env('SEI_EVENTS', true),
+
+];
