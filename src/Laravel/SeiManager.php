@@ -17,6 +17,7 @@ use MonteiroTi\Sei\Core\Transport\SoapTransport;
 use MonteiroTi\Sei\Core\Transport\Transport;
 use MonteiroTi\Sei\Laravel\Integracao\Idempotencia;
 use MonteiroTi\Sei\Laravel\Integracao\SeiIntegracao;
+use MonteiroTi\Sei\Laravel\Sincronizacao\Sincronizador;
 use MonteiroTi\Sei\Laravel\Testing\SeiFake;
 use MonteiroTi\Sei\SeiClient;
 use MonteiroTi\Sei\Sip\SipClient;
@@ -61,6 +62,13 @@ class SeiManager
         $config = $this->config('integracao', []);
 
         return new SeiIntegracao($this->connection($conexao), $conexao, $this->idempotencia(), is_array($config) ? $config : []);
+    }
+
+    public function sincronizador(): Sincronizador
+    {
+        $config = $this->config('sincronizacao', []);
+
+        return new Sincronizador($this, $this->app->make('events'), $this->redactor(), is_array($config) ? $config : []);
     }
 
     public function idempotencia(): Idempotencia

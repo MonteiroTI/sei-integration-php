@@ -33,6 +33,10 @@ class SeiDocumento extends SeiModel
 {
     protected const TABELA = 'documentos';
 
+    protected $attributes = [
+        'sincronizar' => true,
+    ];
+
     protected function casts(): array
     {
         return [

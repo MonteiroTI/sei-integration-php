@@ -160,6 +160,32 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Sincronização (polling)
+    |--------------------------------------------------------------------------
+    |
+    | O SEI não notifica o sistema: php artisan sei:sincronizar consulta os
+    | processos vinculados e dispara os eventos de MonteiroTi\Sei\Laravel\Events\Sincronizacao.
+    |
+    */
+
+    'sincronizacao' => [
+        // Conexão usada nas consultas: null (a do vínculo), um nome (ex.: 'leitura')
+        // ou um mapa ['default' => 'leitura', 'orgao-b' => 'orgao-b-leitura']
+        'conexao' => env('SEI_SINCRONIZACAO_CONEXAO'),
+        // Segundos entre consultas de processos abertos e concluídos
+        'intervalo' => (int) env('SEI_SINCRONIZACAO_INTERVALO', 900),
+        'intervalo_concluidos' => (int) env('SEI_SINCRONIZACAO_INTERVALO_CONCLUIDOS', 86400),
+        // Processos por execução de sei:sincronizar
+        'limite' => 100,
+        // Fila dos jobs de sincronização (null: a padrão)
+        'fila' => env('SEI_SINCRONIZACAO_FILA'),
+        // true: o pacote agenda sei:sincronizar no scheduler do Laravel
+        'agendar' => (bool) env('SEI_SINCRONIZACAO_AGENDAR', false),
+        'cron' => '*/15 * * * *',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Persistência (vínculos, idempotência e sincronização)
     |--------------------------------------------------------------------------
     |

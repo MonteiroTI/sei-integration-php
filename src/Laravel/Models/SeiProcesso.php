@@ -40,6 +40,13 @@ class SeiProcesso extends SeiModel
 {
     protected const TABELA = 'processos';
 
+    /** Mesmos padrões da migration, para instâncias recém-criadas. */
+    protected $attributes = [
+        'sigiloso' => false,
+        'aberto' => true,
+        'sincronizar' => true,
+    ];
+
     protected function casts(): array
     {
         return [

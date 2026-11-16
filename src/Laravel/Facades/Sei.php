@@ -24,6 +24,7 @@ use MonteiroTi\Sei\Laravel\Testing\SeiFake;
  * @method static void purge(?string $name = null)
  * @method static string parametro(string $chave, ?string $conexao = null)
  * @method static \MonteiroTi\Sei\Laravel\Integracao\SeiIntegracao integracao(?string $conexao = null)
+ * @method static \MonteiroTi\Sei\Laravel\Sincronizacao\Sincronizador sincronizador()
  *
  * @see SeiManager
  */

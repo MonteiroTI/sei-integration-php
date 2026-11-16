@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace MonteiroTi\Sei\Laravel;
 
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Support\ServiceProvider;
 use MonteiroTi\Sei\Laravel\Console\CatalogoCommand;
 use MonteiroTi\Sei\Laravel\Console\OperacoesCommand;
 use MonteiroTi\Sei\Laravel\Console\PingCommand;
 use MonteiroTi\Sei\Laravel\Console\ResolverOperacaoCommand;
+use MonteiroTi\Sei\Laravel\Console\SincronizarCommand;
 use MonteiroTi\Sei\Laravel\Console\ValidarParametrosCommand;
 use MonteiroTi\Sei\SeiClient;
 use MonteiroTi\Sei\Sip\SipClient;
@@ -48,7 +50,17 @@ final class SeiServiceProvider extends ServiceProvider
                 ValidarParametrosCommand::class,
                 OperacoesCommand::class,
                 ResolverOperacaoCommand::class,
+                SincronizarCommand::class,
             ]);
+        }
+
+        if (config('sei.sincronizacao.agendar', false)) {
+            $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
+                $schedule->command('sei:sincronizar')
+                    ->cron((string) config('sei.sincronizacao.cron', '*/15 * * * *'))
+                    ->withoutOverlapping()
+                    ->runInBackground();
+            });
         }
     }
 
