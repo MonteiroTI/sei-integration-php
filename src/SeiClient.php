@@ -14,6 +14,7 @@ use MonteiroTi\Sei\Api\Processos;
 use MonteiroTi\Sei\Api\Publicacoes;
 use MonteiroTi\Sei\Core\Config\SeiConfig;
 use MonteiroTi\Sei\Core\Config\TransportOptions;
+use MonteiroTi\Sei\Core\Exceptions\AccessDeniedException;
 use MonteiroTi\Sei\Core\Exceptions\InvalidArgumentException;
 use MonteiroTi\Sei\Core\Support\CatalogCache;
 use MonteiroTi\Sei\Core\Transport\SoapTransport;
@@ -90,6 +91,16 @@ final class SeiClient
     }
 
     /**
+     * Operações do catálogo liberadas nesta conexão.
+     *
+     * @return list<string>
+     */
+    public function operacoesPermitidas(): array
+    {
+        return array_values(array_filter(SeiOperations::all(), $this->config->permite(...)));
+    }
+
+    /**
      * @param  bool  $cache  Usa o cache de catálogos configurado (se houver)
      */
     public function catalogos(bool $cache = true): Catalogos
@@ -118,6 +129,13 @@ final class SeiClient
     public function call(string $operation, array $parameters = []): mixed
     {
         $names = SeiOperations::parameters($operation);
+
+        if (! $this->config->permite($operation)) {
+            throw new AccessDeniedException(
+                sprintf('A operação %s não está liberada nesta conexão (opções "operacoes"/"somente_leitura").', $operation),
+                $operation,
+            );
+        }
 
         $unknown = array_diff(array_keys($parameters), $names);
         if ($unknown !== []) {

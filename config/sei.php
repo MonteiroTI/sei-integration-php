@@ -40,7 +40,26 @@ return [
             // Tamanho de cada parte em Documentos::enviarArquivo() (bytes)
             'upload_chunk_size' => 5 * 1024 * 1024,
             'soap_options' => [],
+
+            // Permissões mínimas: bloqueia localmente operações fora da lista (aceita curinga *).
+            // Null libera todas. Libere também apenas essas operações no cadastro do serviço no SEI.
+            'operacoes' => null,
+            // true: apenas consultar* e listar*
+            'somente_leitura' => false,
         ],
+
+        /*
+        | Exemplo: um serviço do SEI só de leitura, com chave própria, para consultas
+        | e sincronização; a conexão "default" fica com as operações de escrita.
+        |
+        | 'leitura' => [
+        |     'wsdl' => env('SEI_WSDL'),
+        |     'sigla_sistema' => env('SEI_SIGLA_SISTEMA'),
+        |     'identificacao_servico' => env('SEI_LEITURA_IDENTIFICACAO_SERVICO'),
+        |     'id_unidade' => env('SEI_ID_UNIDADE'),
+        |     'somente_leitura' => true,
+        | ],
+        */
 
     ],
 

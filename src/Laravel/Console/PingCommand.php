@@ -44,8 +44,18 @@ final class PingCommand extends Command
                 return $report['missing'] === [] && $report['mismatched'] === [] ? self::SUCCESS : self::FAILURE;
             }
 
-            $unidades = $manager->connection($name)->catalogos(cache: false)->unidades();
-            $this->components->info(sprintf('Credenciais válidas: %d unidade(s) liberada(s) para o serviço.', count($unidades)));
+            $client = $manager->connection($name);
+            $permitidas = $client->operacoesPermitidas();
+            if (count($permitidas) < count(SeiOperations::all())) {
+                $this->components->info(sprintf('Operações liberadas nesta conexão (%d): %s', count($permitidas), implode(', ', $permitidas)));
+            }
+
+            if (! $client->config()->permite('listarUnidades')) {
+                $this->components->warn('listarUnidades não está liberada nesta conexão: credenciais não verificadas.');
+            } else {
+                $unidades = $client->catalogos(cache: false)->unidades();
+                $this->components->info(sprintf('Credenciais válidas: %d unidade(s) liberada(s) para o serviço.', count($unidades)));
+            }
         } catch (SeiException|\InvalidArgumentException $e) {
             $this->components->error($e->getMessage());
 
