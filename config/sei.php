@@ -83,13 +83,19 @@ return [
     | Logs e eventos
     |--------------------------------------------------------------------------
     |
-    | Os logs mascaram a chave de acesso e resumem conteúdos em Base64.
+    | Os logs mascaram a chave de acesso e os dados pessoais (LGPD) e resumem
+    | conteúdos em Base64.
     |
     */
 
     'log' => [
         'enabled' => (bool) env('SEI_LOG', false),
         'channel' => env('SEI_LOG_CHANNEL'),
+        // Dados pessoais (CPF, CNPJ, e-mail, nomes de interessados, telefones, endereço...):
+        // mascarar (padrão), remover ou manter. Credenciais são sempre mascaradas.
+        'dados_pessoais' => env('SEI_LOG_DADOS_PESSOAIS', 'mascarar'),
+        // Outras chaves a tratar como dado pessoal (ex.: campos de formulário)
+        'chaves_extras' => [],
     ],
 
     'events' => (bool) env('SEI_EVENTS', true),

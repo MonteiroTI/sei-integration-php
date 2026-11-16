@@ -15,6 +15,10 @@ use Psr\Log\LoggerInterface;
 
 /**
  * Decorator que registra logs e dispara eventos a cada chamada.
+ *
+ * Logs e SeiRequestSending recebem argumentos mascarados (credenciais e dados pessoais).
+ * SeiResponseReceived e SeiRequestFailed trazem o retorno e a exceção originais,
+ * para uso interno da aplicação: não os registre sem mascarar.
  */
 final class ObservedTransport implements Transport
 {
@@ -23,11 +27,13 @@ final class ObservedTransport implements Transport
         private readonly string $connection,
         private readonly ?Dispatcher $events = null,
         private readonly ?LoggerInterface $logger = null,
+        private readonly ?Redactor $redactor = null,
     ) {}
 
     public function call(string $operation, array $arguments): mixed
     {
-        $redacted = Redactor::redact($arguments);
+        $redactor = $this->redactor ?? Redactor::default();
+        $redacted = $redactor->arguments($arguments, $operation);
         $this->events?->dispatch(new SeiRequestSending($this->connection, $operation, $redacted));
         $start = hrtime(true);
 
@@ -39,7 +45,7 @@ final class ObservedTransport implements Transport
                 'connection' => $this->connection,
                 'duration_ms' => $ms,
                 'exception' => $e::class,
-                'message' => $e->getMessage(),
+                'message' => $redactor->text($e->getMessage()),
                 'arguments' => $redacted,
             ]);
             $this->events?->dispatch(new SeiRequestFailed($this->connection, $operation, $ms, $e));

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
+use MonteiroTi\Sei\Core\Exceptions\ValidationException;
 use MonteiroTi\Sei\Core\Transport\FakeTransport;
+use MonteiroTi\Sei\Dto\Contato;
 use MonteiroTi\Sei\Laravel\Events\SeiRequestSending;
 use MonteiroTi\Sei\Laravel\Events\SeiResponseReceived;
 use MonteiroTi\Sei\Laravel\Facades\Sei;
@@ -43,6 +45,20 @@ it('o fake também cobre o SIP', function () {
     Sip::replicarUsuario([]);
 
     $fake->assertCalled('replicarUsuario', fn (array $args) => $args['ChaveAcesso'] === 'chave-sip');
+});
+
+it('mascara dados pessoais e mensagens de erro nos logs', function () {
+    config(['sei.log.enabled' => true]);
+    $logger = Mockery::spy(LoggerInterface::class);
+    Log::shouldReceive('channel')->andReturn($logger);
+    Sei::fake()->respond('atualizarContatos', new ValidationException('CPF 052.559.530-91 inválido.', 'atualizarContatos'));
+
+    expect(fn () => Sei::contatos()->atualizar(new Contato(nome: 'Paulo Silva', cpf: '052.559.530-91')))
+        ->toThrow(ValidationException::class);
+
+    $logger->shouldHaveReceived('warning')->withArgs(fn (string $msg, array $ctx) => $ctx['message'] === 'CPF ***.***.***-91 inválido.'
+        && $ctx['arguments']['Contatos'][0]['Cpf'] === '***.***.***-91'
+        && $ctx['arguments']['Contatos'][0]['Nome'] === 'P. S.');
 });
 
 it('dispara eventos e registra logs com a chave mascarada', function () {

@@ -9,6 +9,7 @@ use MonteiroTi\Sei\Core\Config\SeiConfig;
 use MonteiroTi\Sei\Core\Config\SipConfig;
 use MonteiroTi\Sei\Core\Config\TransportOptions;
 use MonteiroTi\Sei\Core\Support\CatalogCache;
+use MonteiroTi\Sei\Core\Support\Redactor;
 use MonteiroTi\Sei\Core\Transport\FakeTransport;
 use MonteiroTi\Sei\Core\Transport\SoapTransport;
 use MonteiroTi\Sei\Core\Transport\Transport;
@@ -140,7 +141,17 @@ class SeiManager
             return $transport;
         }
 
-        return new ObservedTransport($transport, $connection, $events, $logger);
+        return new ObservedTransport($transport, $connection, $events, $logger, $this->redactor());
+    }
+
+    public function redactor(): Redactor
+    {
+        $extras = $this->config('log.chaves_extras', []);
+
+        return new Redactor(
+            (string) $this->config('log.dados_pessoais', Redactor::MODO_MASCARAR),
+            is_array($extras) ? array_values(array_map('strval', $extras)) : [],
+        );
     }
 
     private function catalogCache(string $name): ?CatalogCache
