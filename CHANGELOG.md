@@ -1,0 +1,29 @@
+# Changelog
+
+Todas as mudanças relevantes deste pacote. O formato segue o
+[Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem
+[SemVer](https://semver.org/lang/pt-BR/). Enquanto a versão for `0.x`, mudanças
+incompatíveis podem ocorrer entre versões menores e serão listadas aqui.
+
+## [Não lançado]
+
+### Adicionado
+
+- Cliente do WebService SEI 5.0 (66 operações) e SIP (3 operações), com DTOs, enums,
+  validação local, upload em partes e exceções tipadas.
+- Camada Laravel: conexões nomeadas, facades `Sei`/`Sip`, cache de catálogos, eventos,
+  `Sei::fake()` e os comandos `sei:ping`, `sei:catalogo` e `sei:wsdl`.
+- Mascaramento de dados pessoais (LGPD) nos logs e em mensagens de erro
+  (`sei.log.dados_pessoais`, `sei.log.chaves_extras`).
+- Restrição de operações por conexão (`operacoes`, `somente_leitura`).
+- Parâmetros nomeados por conexão (`parametros`, `Sei::parametro()`,
+  `sei:catalogo --php`, `sei:parametros:validar`).
+- Módulo de persistência opcional (migration `sei-migrations`): vínculos
+  `SeiProcesso`/`SeiDocumento`, trait `HasSeiProcesso` e ledger `SeiOperacao`.
+- Idempotência: `Sei::integracao()`, `GerarProcessoSeiJob`, `IncluirDocumentoSeiJob`,
+  `sei:operacoes` e `sei:operacoes:resolver`; `ConnectionException::$possivelmenteEnviada`.
+- Andamento de rastreabilidade opcional após gerar processo ou incluir documento.
+- Sincronização por polling (`sei:sincronizar`, `SincronizarProcessoSeiJob`) com eventos
+  de andamento, tramitação, conclusão, reabertura, assinatura e publicação.
+- Ferramentas de validação na homologação: `.env.homologacao.example`,
+  `composer wsdl:baixar` e teste de contrato com as WSDLs reais do SEI e do SIP.
