@@ -9,6 +9,11 @@ use MonteiroTi\Sei\Tests\Laravel\TestCase;
 
 uses(TestCase::class)->in('Laravel');
 
+// Variáveis da homologação (SEI_TEST_*, SIP_TEST_*), fora do controle de versão.
+if (is_file(dirname(__DIR__).'/.env.homologacao')) {
+    Dotenv\Dotenv::createUnsafeImmutable(dirname(__DIR__), '.env.homologacao')->safeLoad();
+}
+
 function fakeSei(?FakeTransport &$transport = null, ?string $idUnidade = '110000001', string $charset = 'UTF-8', int $chunk = 5 * 1024 * 1024): SeiClient
 {
     $transport = new FakeTransport;

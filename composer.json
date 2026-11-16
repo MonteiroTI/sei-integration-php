@@ -3,7 +3,13 @@
     "description": "Cliente PHP para os WebServices SOAP do SEI e do SIP 5.0, com integração opcional ao Laravel.",
     "type": "library",
     "license": "proprietary",
-    "keywords": ["sei", "sip", "soap", "processo eletrônico", "laravel"],
+    "keywords": [
+        "sei",
+        "sip",
+        "soap",
+        "processo eletrônico",
+        "laravel"
+    ],
     "require": {
         "php": "^8.2",
         "ext-mbstring": "*",
@@ -33,7 +39,8 @@
         "test": "pest --exclude-group=integration",
         "test:integration": "pest --group=integration",
         "analyse": "phpstan analyse --memory-limit=1G",
-        "format": "pint"
+        "format": "pint",
+        "wsdl:baixar": "@php bin/baixar-wsdl-homologacao.php"
     },
     "extra": {
         "laravel": {

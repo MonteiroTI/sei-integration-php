@@ -100,6 +100,35 @@ final class SoapTransport implements Transport
     }
 
     /**
+     * Baixa a WSDL com as mesmas opções de SSL, proxy e timeout da conexão.
+     */
+    public function downloadWsdl(): string
+    {
+        $o = $this->options;
+        $http = ['timeout' => $o->timeout, 'user_agent' => 'monteiroti-sei-integration', 'ignore_errors' => false];
+        if ($o->proxyHost !== null) {
+            $http['proxy'] = 'tcp://'.$o->proxyHost.':'.($o->proxyPort ?? 80);
+            $http['request_fulluri'] = true;
+        }
+        $ssl = $o->verifySsl
+            ? ['verify_peer' => true, 'verify_peer_name' => true]
+            : ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true];
+
+        set_error_handler(fn (): bool => true, E_WARNING);
+        try {
+            $conteudo = file_get_contents($o->wsdl, false, stream_context_create(['http' => $http, 'ssl' => $ssl]));
+        } finally {
+            restore_error_handler();
+        }
+
+        if ($conteudo === false || ! str_contains($conteudo, 'definitions')) {
+            throw new ConnectionException(sprintf('Não foi possível baixar a WSDL %s.', $o->wsdl), possivelmenteEnviada: false);
+        }
+
+        return $conteudo;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function soapOptions(): array

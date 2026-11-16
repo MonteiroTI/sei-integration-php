@@ -12,6 +12,7 @@ use MonteiroTi\Sei\Dto\Procedimento;
 use MonteiroTi\Sei\Operations\SeiOperations;
 use MonteiroTi\Sei\Operations\WsdlContract;
 use MonteiroTi\Sei\SeiClient;
+use MonteiroTi\Sei\Sip\SipOperations;
 use MonteiroTi\Sei\Tests\Support\RecordingSoapClient;
 
 function recordingClient(?RecordingSoapClient &$soap = null, string $response = ''): SeiClient
@@ -117,4 +118,25 @@ it('confere todas as operações com a WSDL real, se disponível', function () {
 
     expect($report['missing'])->toBe([])
         ->and($report['mismatched'])->toBe([]);
+});
+
+it('confere as operações do SIP com a WSDL real, se disponível', function () {
+    $wsdl = seiFixture('sip.wsdl');
+    if (! is_file($wsdl)) {
+        $this->markTestSkipped('Salve a WSDL do SIP em tests/Fixtures/sip.wsdl para rodar o teste de contrato.');
+    }
+
+    $transport = new SoapTransport(new TransportOptions($wsdl, wsdlCache: WSDL_CACHE_NONE));
+    $report = WsdlContract::compare($transport->functions(), SipOperations::all(), SipOperations::parameters(...));
+
+    expect($report['missing'])->toBe([])
+        ->and($report['mismatched'])->toBe([]);
+});
+
+it('baixa a WSDL com as opções da conexão', function () {
+    $transport = new SoapTransport(new TransportOptions(seiFixture('sei-mini.wsdl')));
+
+    expect($transport->downloadWsdl())->toContain('wsdl:definitions')
+        ->and(fn () => (new SoapTransport(new TransportOptions('/nao/existe.wsdl')))->downloadWsdl())
+        ->toThrow(ConnectionException::class);
 });

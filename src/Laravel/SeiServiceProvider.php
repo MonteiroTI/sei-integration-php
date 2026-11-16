@@ -13,6 +13,7 @@ use MonteiroTi\Sei\Laravel\Console\PingCommand;
 use MonteiroTi\Sei\Laravel\Console\ResolverOperacaoCommand;
 use MonteiroTi\Sei\Laravel\Console\SincronizarCommand;
 use MonteiroTi\Sei\Laravel\Console\ValidarParametrosCommand;
+use MonteiroTi\Sei\Laravel\Console\WsdlCommand;
 use MonteiroTi\Sei\SeiClient;
 use MonteiroTi\Sei\Sip\SipClient;
 
@@ -51,6 +52,7 @@ final class SeiServiceProvider extends ServiceProvider
                 OperacoesCommand::class,
                 ResolverOperacaoCommand::class,
                 SincronizarCommand::class,
+                WsdlCommand::class,
             ]);
         }
 
