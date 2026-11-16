@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MonteiroTi\Sei\Laravel;
 
+use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Support\Arr;
 use MonteiroTi\Sei\Core\Config\SeiConfig;
@@ -14,6 +15,8 @@ use MonteiroTi\Sei\Core\Support\Redactor;
 use MonteiroTi\Sei\Core\Transport\FakeTransport;
 use MonteiroTi\Sei\Core\Transport\SoapTransport;
 use MonteiroTi\Sei\Core\Transport\Transport;
+use MonteiroTi\Sei\Laravel\Integracao\Idempotencia;
+use MonteiroTi\Sei\Laravel\Integracao\SeiIntegracao;
 use MonteiroTi\Sei\Laravel\Testing\SeiFake;
 use MonteiroTi\Sei\SeiClient;
 use MonteiroTi\Sei\Sip\SipClient;
@@ -47,6 +50,27 @@ class SeiManager
         $name ??= (string) $this->config('sip.default', 'default');
 
         return $this->sipClients[$name] ??= $this->makeSip($name);
+    }
+
+    /**
+     * Operações com idempotência, vínculo no banco e rastreabilidade (módulo de persistência).
+     */
+    public function integracao(?string $conexao = null): SeiIntegracao
+    {
+        $conexao ??= $this->getDefaultConnection();
+        $config = $this->config('integracao', []);
+
+        return new SeiIntegracao($this->connection($conexao), $conexao, $this->idempotencia(), is_array($config) ? $config : []);
+    }
+
+    public function idempotencia(): Idempotencia
+    {
+        $store = $this->app->make('cache')->store($this->config('integracao.lock_store'))->getStore();
+        if (! $store instanceof LockProvider) {
+            throw new \InvalidArgumentException('O cache store usado em sei.integracao.lock_store precisa suportar locks (redis, database, file, array...).');
+        }
+
+        return new Idempotencia($store, $this->redactor(), (int) $this->config('integracao.lock_segundos', 300));
     }
 
     /**

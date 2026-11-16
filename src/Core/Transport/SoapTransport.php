@@ -90,6 +90,7 @@ final class SoapTransport implements Transport
             throw new ConnectionException(
                 sprintf('Não foi possível carregar a WSDL %s: %s', $this->options->wsdl, $fault->getMessage()),
                 previous: $fault,
+                possivelmenteEnviada: false,
             );
         } finally {
             restore_error_handler();

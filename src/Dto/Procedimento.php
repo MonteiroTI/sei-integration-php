@@ -33,6 +33,16 @@ final readonly class Procedimento implements ToSoap
         public ?string $idTipoPrioridade = null,
     ) {}
 
+    /**
+     * Cópia com campos alterados, ex.: $p->with(['observacao' => '...']).
+     *
+     * @param  array<string, mixed>  $changes
+     */
+    public function with(array $changes): self
+    {
+        return new self(...array_replace(get_object_vars($this), $changes));
+    }
+
     public function toSoap(): array
     {
         return [

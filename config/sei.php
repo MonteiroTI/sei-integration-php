@@ -134,6 +134,32 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Integração de alto nível (Sei::integracao())
+    |--------------------------------------------------------------------------
+    |
+    | Gera processos e inclui documentos no máximo uma vez por chave e grava os
+    | vínculos no banco. Exige as tabelas do módulo de persistência.
+    |
+    */
+
+    'integracao' => [
+        // Nome do sistema usado nos textos abaixo
+        'sistema' => env('SEI_SISTEMA_NOME', env('APP_NAME', 'Sistema')),
+        // Identificador acrescentado à Observação do processo, para localizar o processo no SEI
+        // em uma conferência manual. Placeholders: {sistema}, {tipo}, {id}. Null desliga.
+        'identificador' => '[{sistema} {tipo} #{id}]',
+        // Andamento de rastreabilidade (tarefa 65) após gerar processo ou incluir documento
+        'andamento' => [
+            'ativo' => (bool) env('SEI_ANDAMENTO_RASTREABILIDADE', false),
+            'texto' => '{acao} pelo sistema {sistema} (ref. {tipo} #{id}).',
+        ],
+        // Store de cache usado para os locks de idempotência (precisa suportar locks)
+        'lock_store' => env('SEI_LOCK_STORE'),
+        'lock_segundos' => 300,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Persistência (vínculos, idempotência e sincronização)
     |--------------------------------------------------------------------------
     |

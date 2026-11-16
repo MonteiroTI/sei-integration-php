@@ -8,6 +8,7 @@ use MonteiroTi\Sei\Core\Exceptions\FaultException;
 use MonteiroTi\Sei\Core\Exceptions\FaultMapper;
 use MonteiroTi\Sei\Core\Exceptions\ValidationException;
 use MonteiroTi\Sei\Core\Support\Redactor;
+use MonteiroTi\Sei\Operations\SeiOperations;
 
 it('classifica faults', function (string $code, string $message, string $operation, string $class) {
     expect(FaultMapper::map(new SoapFault($code, $message), $operation))->toBeInstanceOf($class);
@@ -36,4 +37,24 @@ it('mascara credenciais e resume conteúdos longos para log', function () {
     expect($redacted['IdentificacaoServico'])->toBe('***')
         ->and($redacted['Documento']['Conteudo'])->toStartWith('[1000 bytes]')
         ->and($redacted['Documento']['Nome'])->toBe('x');
+});
+
+it('indica se a requisição pode ter chegado ao SEI', function (string $code, string $message, bool $enviada) {
+    $e = FaultMapper::map(new SoapFault($code, $message), 'gerarProcedimento');
+
+    expect($e)->toBeInstanceOf(ConnectionException::class)
+        ->and($e->possivelmenteEnviada)->toBe($enviada);
+})->with([
+    'host recusou' => ['HTTP', 'Could not connect to host', false],
+    'dns' => ['HTTP', 'Could not resolve host: sei.test', false],
+    'wsdl' => ['WSDL', 'SOAP-ERROR: Parsing WSDL', false],
+    'timeout lendo resposta' => ['HTTP', 'Error Fetching http headers', true],
+    'reset' => ['HTTP', 'Connection reset by peer', true],
+    'erro 500 do servidor' => ['HTTP', 'Internal Server Error', true],
+]);
+
+it('classifica operações idempotentes', function () {
+    expect(SeiOperations::idempotente('gerarProcedimento'))->toBeFalse()
+        ->and(SeiOperations::idempotente('consultarProcedimento'))->toBeTrue()
+        ->and(array_diff(SeiOperations::NAO_IDEMPOTENTES, SeiOperations::all()))->toBe([]);
 });

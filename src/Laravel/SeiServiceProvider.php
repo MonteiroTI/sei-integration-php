@@ -7,7 +7,9 @@ namespace MonteiroTi\Sei\Laravel;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Support\ServiceProvider;
 use MonteiroTi\Sei\Laravel\Console\CatalogoCommand;
+use MonteiroTi\Sei\Laravel\Console\OperacoesCommand;
 use MonteiroTi\Sei\Laravel\Console\PingCommand;
+use MonteiroTi\Sei\Laravel\Console\ResolverOperacaoCommand;
 use MonteiroTi\Sei\Laravel\Console\ValidarParametrosCommand;
 use MonteiroTi\Sei\SeiClient;
 use MonteiroTi\Sei\Sip\SipClient;
@@ -44,6 +46,8 @@ final class SeiServiceProvider extends ServiceProvider
                 PingCommand::class,
                 CatalogoCommand::class,
                 ValidarParametrosCommand::class,
+                OperacoesCommand::class,
+                ResolverOperacaoCommand::class,
             ]);
         }
     }

@@ -25,6 +25,23 @@ final class SeiOperations
         'listarTiposProcedimento',
     ];
 
+    /**
+     * Operações cujo efeito se repete a cada chamada (criam registros ou acrescentam conteúdo).
+     * Um retry depois de timeout pode duplicar processos, documentos, andamentos ou e-mails.
+     */
+    public const NAO_IDEMPOTENTES = [
+        'adicionarArquivo',
+        'adicionarConteudoArquivo',
+        'agendarPublicacao',
+        'enviarEmail',
+        'enviarProcesso',
+        'gerarBloco',
+        'gerarProcedimento',
+        'incluirDocumento',
+        'lancarAndamento',
+        'registrarOuvidoria',
+    ];
+
     /** @var array<string, list<string>> */
     private const EXTRA = [
         'adicionarArquivo' => ['Nome', 'Tamanho', 'Hash', 'Conteudo'],
@@ -130,6 +147,11 @@ final class SeiOperations
         sort($all);
 
         return $all;
+    }
+
+    public static function idempotente(string $operation): bool
+    {
+        return ! in_array($operation, self::NAO_IDEMPOTENTES, true);
     }
 
     public static function requiresUnidade(string $operation): bool

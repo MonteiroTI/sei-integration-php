@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace MonteiroTi\Sei\Laravel\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Carbon;
 
 /**
  * Documento do SEI criado ou acompanhado pelo sistema.
@@ -19,13 +19,15 @@ use Illuminate\Support\Carbon;
  * @property string|null $id_serie
  * @property string|null $tipo
  * @property list<array{nome: string|null, sigla: string|null, cargo: string|null, data_hora: string|null}>|null $assinaturas
- * @property Carbon|null $assinado_em
+ * @property CarbonInterface|null $assinado_em
  * @property string|null $id_publicacao
  * @property string|null $publicacao_estado
- * @property Carbon|null $publicado_em
+ * @property CarbonInterface|null $publicado_em
  * @property bool $sincronizar
- * @property Carbon|null $sincronizado_em
+ * @property CarbonInterface|null $sincronizado_em
  * @property-read SeiProcesso|null $processo
+ * @property CarbonInterface|null $created_at
+ * @property CarbonInterface|null $updated_at
  */
 class SeiDocumento extends SeiModel
 {

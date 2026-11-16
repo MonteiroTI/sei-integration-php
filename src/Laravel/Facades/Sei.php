@@ -23,6 +23,7 @@ use MonteiroTi\Sei\Laravel\Testing\SeiFake;
  * @method static mixed call(string $operation, array<string, mixed> $parameters = [])
  * @method static void purge(?string $name = null)
  * @method static string parametro(string $chave, ?string $conexao = null)
+ * @method static \MonteiroTi\Sei\Laravel\Integracao\SeiIntegracao integracao(?string $conexao = null)
  *
  * @see SeiManager
  */

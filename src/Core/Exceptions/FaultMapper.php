@@ -24,10 +24,21 @@ final class FaultMapper
 
     private const CONNECTION_PATTERNS = [
         '/could not connect/i',
+        '/could not resolve host/i',
         '/error fetching http headers/i',
         '/failed to load external entity/i',
         '/parsing wsdl/i',
         '/connection (refused|reset|timed out)/i',
+        '/ssl (operation failed|routines)/i',
+    ];
+
+    /** Falhas em que a requisição certamente não chegou ao servidor. */
+    private const NOT_SENT_PATTERNS = [
+        '/could not connect/i',
+        '/could not resolve host/i',
+        '/failed to load external entity/i',
+        '/parsing wsdl/i',
+        '/connection refused/i',
         '/ssl (operation failed|routines)/i',
     ];
 
@@ -37,7 +48,9 @@ final class FaultMapper
         $code = isset($fault->faultcode) ? (string) $fault->faultcode : null;
 
         if (in_array($code, ['HTTP', 'WSDL'], true) || self::matches($message, self::CONNECTION_PATTERNS)) {
-            return new ConnectionException($message, $operation, 0, $fault);
+            $naoEnviada = $code === 'WSDL' || self::matches($message, self::NOT_SENT_PATTERNS);
+
+            return new ConnectionException($message, $operation, 0, $fault, possivelmenteEnviada: ! $naoEnviada);
         }
 
         if (self::matches($message, self::ACCESS_DENIED_PATTERNS)) {

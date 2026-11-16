@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace MonteiroTi\Sei\Laravel\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
-use Illuminate\Support\Carbon;
 
 /**
  * Registro de idempotência de uma operação no SEI.
@@ -21,8 +21,11 @@ use Illuminate\Support\Carbon;
  * @property string|null $erro
  * @property string|null $vinculavel_type
  * @property int|string|null $vinculavel_id
- * @property Carbon|null $iniciada_em
- * @property Carbon|null $concluida_em
+ * @property CarbonInterface|null $iniciada_em
+ * @property CarbonInterface|null $concluida_em
+ * @property CarbonInterface|null $created_at
+ * @property CarbonInterface|null $updated_at
+ * @property-read Model|null $vinculavel
  */
 class SeiOperacao extends SeiModel
 {

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace MonteiroTi\Sei\Laravel\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
-use Illuminate\Support\Carbon;
 
 /**
  * Vínculo entre um registro do sistema e um processo no SEI.
@@ -26,12 +26,15 @@ use Illuminate\Support\Carbon;
  * @property list<array{id: string|null, sigla: string|null}>|null $unidades_abertas
  * @property bool $aberto
  * @property string|null $ultimo_andamento_id
- * @property Carbon|null $ultimo_andamento_em
- * @property Carbon|null $concluido_em
+ * @property CarbonInterface|null $ultimo_andamento_em
+ * @property CarbonInterface|null $concluido_em
  * @property bool $sincronizar
- * @property Carbon|null $proxima_sincronizacao_em
- * @property Carbon|null $sincronizado_em
+ * @property CarbonInterface|null $proxima_sincronizacao_em
+ * @property CarbonInterface|null $sincronizado_em
  * @property string|null $erro_sincronizacao
+ * @property CarbonInterface|null $created_at
+ * @property CarbonInterface|null $updated_at
+ * @property-read Model|null $vinculavel
  */
 class SeiProcesso extends SeiModel
 {
