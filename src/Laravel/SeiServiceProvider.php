@@ -8,6 +8,7 @@ use Illuminate\Contracts\Container\Container;
 use Illuminate\Support\ServiceProvider;
 use MonteiroTi\Sei\Laravel\Console\CatalogoCommand;
 use MonteiroTi\Sei\Laravel\Console\PingCommand;
+use MonteiroTi\Sei\Laravel\Console\ValidarParametrosCommand;
 use MonteiroTi\Sei\SeiClient;
 use MonteiroTi\Sei\Sip\SipClient;
 
@@ -35,7 +36,15 @@ final class SeiServiceProvider extends ServiceProvider
                 __DIR__.'/../../config/sei.php' => $this->app->configPath('sei.php'),
             ], 'sei-config');
 
-            $this->commands([PingCommand::class, CatalogoCommand::class]);
+            $this->publishesMigrations([
+                __DIR__.'/../../database/migrations/create_sei_tables.php.stub' => $this->app->databasePath('migrations/'.date('Y_m_d_His').'_create_sei_tables.php'),
+            ], 'sei-migrations');
+
+            $this->commands([
+                PingCommand::class,
+                CatalogoCommand::class,
+                ValidarParametrosCommand::class,
+            ]);
         }
     }
 

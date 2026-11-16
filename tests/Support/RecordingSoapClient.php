@@ -16,7 +16,7 @@ final class RecordingSoapClient extends SoapClient
 
     public string $responseXml = '';
 
-    public function __doRequest(string $request, string $location, string $action, int $version, bool $oneWay = false, ?string $uriParserClass = null): ?string
+    public function __doRequest(string $request, string $location, string $action, int $version, bool $oneWay = false, ?string $uriParserClass = null): string
     {
         $this->requestXml = $request;
 

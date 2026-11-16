@@ -22,6 +22,7 @@ use MonteiroTi\Sei\Laravel\Testing\SeiFake;
  * @method static \MonteiroTi\Sei\Api\Catalogos catalogos(bool $cache = true)
  * @method static mixed call(string $operation, array<string, mixed> $parameters = [])
  * @method static void purge(?string $name = null)
+ * @method static string parametro(string $chave, ?string $conexao = null)
  *
  * @see SeiManager
  */

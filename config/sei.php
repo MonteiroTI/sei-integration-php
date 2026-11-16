@@ -1,6 +1,9 @@
 <?php
 
 declare(strict_types=1);
+use MonteiroTi\Sei\Laravel\Models\SeiDocumento;
+use MonteiroTi\Sei\Laravel\Models\SeiOperacao;
+use MonteiroTi\Sei\Laravel\Models\SeiProcesso;
 
 return [
 
@@ -46,6 +49,16 @@ return [
             'operacoes' => null,
             // true: apenas consultar* e listar*
             'somente_leitura' => false,
+
+            // IDs do SEI usados pelo sistema, por nome (o manual recomenda não espalhar IDs pelo código).
+            // Uso: Sei::parametro('tipos_processo.ferias'). Gere com: php artisan sei:catalogo tipos-processo --php
+            // Confira com: php artisan sei:parametros:validar
+            'parametros' => [
+                'unidades' => [],
+                'tipos_processo' => [],
+                'series' => [],
+                'hipoteses_legais' => [],
+            ],
         ],
 
         /*
@@ -118,5 +131,31 @@ return [
     ],
 
     'events' => (bool) env('SEI_EVENTS', true),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Persistência (vínculos, idempotência e sincronização)
+    |--------------------------------------------------------------------------
+    |
+    | Módulo opcional. Publique as migrations com:
+    | php artisan vendor:publish --tag=sei-migrations
+    |
+    */
+
+    'persistencia' => [
+        // Conexão de banco (null: a padrão da aplicação)
+        'conexao_banco' => env('SEI_DB_CONNECTION'),
+        'tabelas' => [
+            'processos' => 'sei_processos',
+            'documentos' => 'sei_documentos',
+            'operacoes' => 'sei_operacoes',
+        ],
+        // Substitua por classes próprias que estendam as do pacote, se precisar
+        'models' => [
+            'processo' => SeiProcesso::class,
+            'documento' => SeiDocumento::class,
+            'operacao' => SeiOperacao::class,
+        ],
+    ],
 
 ];

@@ -2,4 +2,6 @@ parameters:
     level: 8
     paths:
         - src
+        # Exemplos de uso dos traits do módulo Laravel (traits de biblioteca não são usados em src/)
+        - tests/Support
     treatPhpDocTypesAsCertain: false

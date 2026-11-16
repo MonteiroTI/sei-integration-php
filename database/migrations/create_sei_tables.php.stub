@@ -1,0 +1,92 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+/**
+ * Tabelas do módulo de persistência da integração com o SEI
+ * (vínculos com processos/documentos e controle de idempotência).
+ */
+return new class extends Migration
+{
+    public function up(): void
+    {
+        $tabelas = config('sei.persistencia.tabelas');
+        $connection = config('sei.persistencia.conexao_banco');
+
+        Schema::connection($connection)->create($tabelas['processos'] ?? 'sei_processos', function (Blueprint $table) {
+            $table->id();
+            $table->string('conexao', 64);
+            $table->nullableMorphs('vinculavel');
+            $table->string('id_procedimento', 32);
+            $table->string('protocolo_formatado', 64);
+            $table->text('link_acesso')->nullable();
+            $table->string('id_tipo_procedimento', 32)->nullable();
+            $table->string('id_unidade_geradora', 32)->nullable();
+            $table->unsignedTinyInteger('nivel_acesso')->nullable();
+            $table->boolean('sigiloso')->default(false);
+            $table->json('unidades_abertas')->nullable();
+            $table->boolean('aberto')->default(true);
+            $table->string('ultimo_andamento_id', 32)->nullable();
+            $table->timestamp('ultimo_andamento_em')->nullable();
+            $table->timestamp('concluido_em')->nullable();
+            $table->boolean('sincronizar')->default(true);
+            $table->timestamp('proxima_sincronizacao_em')->nullable()->index();
+            $table->timestamp('sincronizado_em')->nullable();
+            $table->text('erro_sincronizacao')->nullable();
+            $table->timestamps();
+
+            $table->unique(['conexao', 'protocolo_formatado']);
+            $table->index(['conexao', 'id_procedimento']);
+        });
+
+        Schema::connection($connection)->create($tabelas['documentos'] ?? 'sei_documentos', function (Blueprint $table) use ($tabelas) {
+            $table->id();
+            $table->foreignId('sei_processo_id')->constrained($tabelas['processos'] ?? 'sei_processos')->cascadeOnDelete();
+            $table->string('conexao', 64);
+            $table->string('id_documento', 32);
+            $table->string('documento_formatado', 64);
+            $table->text('link_acesso')->nullable();
+            $table->string('id_serie', 32)->nullable();
+            $table->char('tipo', 1)->nullable();
+            $table->json('assinaturas')->nullable();
+            $table->timestamp('assinado_em')->nullable();
+            $table->string('id_publicacao', 32)->nullable();
+            $table->char('publicacao_estado', 1)->nullable();
+            $table->timestamp('publicado_em')->nullable();
+            $table->boolean('sincronizar')->default(true);
+            $table->timestamp('sincronizado_em')->nullable();
+            $table->timestamps();
+
+            $table->unique(['conexao', 'documento_formatado']);
+        });
+
+        Schema::connection($connection)->create($tabelas['operacoes'] ?? 'sei_operacoes', function (Blueprint $table) {
+            $table->id();
+            $table->string('chave', 191)->unique();
+            $table->string('conexao', 64);
+            $table->string('operacao', 64);
+            $table->string('status', 16)->index();
+            $table->unsignedInteger('tentativas')->default(0);
+            $table->longText('resultado')->nullable();
+            $table->text('erro')->nullable();
+            $table->nullableMorphs('vinculavel');
+            $table->timestamp('iniciada_em')->nullable();
+            $table->timestamp('concluida_em')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        $tabelas = config('sei.persistencia.tabelas');
+        $connection = config('sei.persistencia.conexao_banco');
+
+        Schema::connection($connection)->dropIfExists($tabelas['operacoes'] ?? 'sei_operacoes');
+        Schema::connection($connection)->dropIfExists($tabelas['documentos'] ?? 'sei_documentos');
+        Schema::connection($connection)->dropIfExists($tabelas['processos'] ?? 'sei_processos');
+    }
+};

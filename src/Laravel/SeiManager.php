@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MonteiroTi\Sei\Laravel;
 
 use Illuminate\Contracts\Container\Container;
+use Illuminate\Support\Arr;
 use MonteiroTi\Sei\Core\Config\SeiConfig;
 use MonteiroTi\Sei\Core\Config\SipConfig;
 use MonteiroTi\Sei\Core\Config\TransportOptions;
@@ -46,6 +47,21 @@ class SeiManager
         $name ??= (string) $this->config('sip.default', 'default');
 
         return $this->sipClients[$name] ??= $this->makeSip($name);
+    }
+
+    /**
+     * ID do SEI configurado em connections.{conexao}.parametros, ex.: parametro('series.portaria').
+     */
+    public function parametro(string $chave, ?string $conexao = null): string
+    {
+        $conexao ??= $this->getDefaultConnection();
+        $valor = Arr::get($this->connectionConfig($conexao)['parametros'] ?? [], $chave);
+
+        if (! is_scalar($valor) || (string) $valor === '') {
+            throw new \InvalidArgumentException("Parâmetro SEI [{$chave}] não configurado na conexão [{$conexao}].");
+        }
+
+        return (string) $valor;
     }
 
     public function getDefaultConnection(): string

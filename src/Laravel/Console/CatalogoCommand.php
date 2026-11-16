@@ -32,7 +32,8 @@ final class CatalogoCommand extends Command
         {tipo : unidades|series|tipos-processo|tipos-conferencia|tipos-prioridade|hipoteses-legais|marcadores|usuarios|extensoes|paises|estados|cargos}
         {--conexao= : Nome da conexão}
         {--unidade= : ID da unidade (padrão: id_unidade da conexão)}
-        {--json : Saída em JSON}';
+        {--json : Saída em JSON}
+        {--php : Gera o trecho de config para connections.*.parametros}';
 
     protected $description = 'Lista tabelas auxiliares do SEI (IDs de unidades, tipos de processo, séries, ...)';
 
@@ -52,6 +53,26 @@ final class CatalogoCommand extends Command
             $client = $client->naUnidade($unidade);
         }
         $c = $client->catalogos(cache: false);
+
+        if ($this->option('php')) {
+            $grupo = GruposCatalogo::deTipo($tipo);
+            if ($grupo === null) {
+                $this->components->error("O tipo {$tipo} não corresponde a um grupo de parâmetros.");
+
+                return self::INVALID;
+            }
+            try {
+                foreach (explode(PHP_EOL, GruposCatalogo::php($grupo, GruposCatalogo::itens($c, $grupo) ?? [])) as $linha) {
+                    $this->line($linha);
+                }
+            } catch (SeiException $e) {
+                $this->components->error($e->getMessage());
+
+                return self::FAILURE;
+            }
+
+            return self::SUCCESS;
+        }
 
         try {
             $items = match ($tipo) {
