@@ -16,11 +16,15 @@
         "ext-soap": "*"
     },
     "require-dev": {
-        "illuminate/support": "^11.0|^12.0",
+        "illuminate/support": "^12.0|^13.0",
         "laravel/pint": "^1.18",
-        "orchestra/testbench": "^9.0|^10.0",
+        "orchestra/testbench": "^10.0|^11.0",
         "pestphp/pest": "^3.0|^4.0",
         "phpstan/phpstan": "^2.0"
+    },
+    "conflict": {
+        "illuminate/support": "<12.0",
+        "laravel/framework": "<12.0"
     },
     "suggest": {
         "illuminate/support": "Necessário para usar a integração com o Laravel (ServiceProvider, Facades, cache e logs)."

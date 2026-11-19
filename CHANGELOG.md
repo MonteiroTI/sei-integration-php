@@ -29,3 +29,4 @@ incompatíveis podem ocorrer entre versões menores e serão listadas aqui.
   `composer wsdl:baixar` e teste de contrato com as WSDLs reais do SEI e do SIP.
 - Skill do Claude Code com o guia de integração em sistemas Laravel
   (`php artisan vendor:publish --tag=sei-claude`).
+- Compatível com Laravel 12 e 13 (mínimo: Laravel 12).

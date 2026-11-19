@@ -14,7 +14,7 @@ Cliente PHP para os WebServices SOAP do **SEI** e do **SIP** (versão 5.0), com 
 ## Requisitos
 
 - PHP 8.2 ou superior, com `ext-soap` e `ext-mbstring`
-- Laravel 11 ou 12 (opcional)
+- Laravel 12 ou 13 (opcional; o pacote declara conflito com versões anteriores ao 12). O Laravel 13 exige PHP 8.3+.
 
 ## Instalação
 
