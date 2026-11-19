@@ -45,6 +45,11 @@ final class SeiServiceProvider extends ServiceProvider
                 __DIR__.'/../../database/migrations/create_sei_tables.php.stub' => $this->app->databasePath('migrations/'.date('Y_m_d_His').'_create_sei_tables.php'),
             ], 'sei-migrations');
 
+            // Guia para o Claude Code integrar o pacote no sistema (skill carregada sob demanda).
+            $this->publishes([
+                __DIR__.'/../../resources/claude/skills/sei-integration/SKILL.md' => $this->app->basePath('.claude/skills/sei-integration/SKILL.md'),
+            ], 'sei-claude');
+
             $this->commands([
                 PingCommand::class,
                 CatalogoCommand::class,

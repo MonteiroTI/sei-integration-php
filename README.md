@@ -38,6 +38,16 @@ No Laravel, o provider é registrado sozinho. Para publicar a configuração:
 php artisan vendor:publish --tag=sei-config
 ```
 
+### Guia para o Claude Code
+
+O pacote traz uma *skill* do Claude Code com o passo a passo de integração, as regras que não podem ser quebradas (idempotência, IDs, LGPD), receitas, testes e diagnóstico. Publique no sistema Laravel:
+
+```bash
+php artisan vendor:publish --tag=sei-claude
+```
+
+Ela vai para `.claude/skills/sei-integration/SKILL.md` e é carregada quando a tarefa envolver o SEI. O arquivo também serve como guia de integração para pessoas: [resources/claude/skills/sei-integration/SKILL.md](resources/claude/skills/sei-integration/SKILL.md).
+
 ## 1. Cadastro no SEI
 
 O manual descreve o cadastro no capítulo 1. Em resumo:

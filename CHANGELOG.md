@@ -27,3 +27,5 @@ incompatíveis podem ocorrer entre versões menores e serão listadas aqui.
   de andamento, tramitação, conclusão, reabertura, assinatura e publicação.
 - Ferramentas de validação na homologação: `.env.homologacao.example`,
   `composer wsdl:baixar` e teste de contrato com as WSDLs reais do SEI e do SIP.
+- Skill do Claude Code com o guia de integração em sistemas Laravel
+  (`php artisan vendor:publish --tag=sei-claude`).

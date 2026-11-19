@@ -203,3 +203,57 @@ it('executa os jobs com idempotência', function () {
     expect($req->seiProcesso->documentos)->toHaveCount(2)
         ->and((new GerarProcessoSeiJob($req, new Procedimento('1')))->tries)->toBe(1);
 });
+
+it('envia o processo uma vez por chave, na unidade informada, e antecipa a sincronização', function () {
+    $fake = Sei::fake()->respond('enviarProcesso', true);
+    $processo = SeiProcesso::create([
+        'conexao' => 'default', 'id_procedimento' => '1', 'protocolo_formatado' => 'P',
+        'proxima_sincronizacao_em' => now()->addHour(),
+    ]);
+
+    Sei::integracao()->naUnidade('999')->enviarProcesso($processo, ['110000015'], 'envio-1');
+    Sei::integracao()->naUnidade('999')->enviarProcesso($processo, ['110000015'], 'envio-1');
+
+    $fake->assertCalledTimes('enviarProcesso', 1)
+        ->assertCalled('enviarProcesso', fn ($a) => $a['IdUnidade'] === '999' && $a['UnidadesDestino'] === ['110000015']);
+    expect($processo->refresh()->proxima_sincronizacao_em->lessThanOrEqualTo(now()))->toBeTrue();
+});
+
+it('resolve inclusão de documento incerta com o documento encontrado no SEI', function () {
+    $fake = Sei::fake()
+        ->respond('gerarProcedimento', retornoGeracao())
+        ->respond('incluirDocumento', new ConnectionException('timeout', 'incluirDocumento', possivelmenteEnviada: true))
+        ->respond('consultarDocumento', (object) [
+            'IdProcedimento' => '1210000000774', 'ProcedimentoFormatado' => '12.1.000000077-4',
+            'IdDocumento' => '77', 'DocumentoFormatado' => '0000077', 'Serie' => (object) ['IdSerie' => '3'],
+        ]);
+    $req = Requerimento::create();
+    Sei::integracao()->gerarProcesso($req, new Procedimento('1'));
+
+    expect(fn () => Sei::integracao()->incluirDocumento($req, Documento::gerado('3', conteudo: 'x'), 'despacho-9'))
+        ->toThrow(OperacaoIncertaException::class);
+
+    $this->artisan('sei:operacoes:resolver', ['chave' => 'default:despacho-9', '--protocolo' => 'X'])->assertFailed();
+    $this->artisan('sei:operacoes:resolver', ['chave' => 'default:despacho-9', '--documento' => '0000077'])->assertSuccessful();
+
+    $doc = Sei::integracao()->incluirDocumento($req, Documento::gerado('3', conteudo: 'x'), 'despacho-9');
+
+    $fake->assertCalledTimes('incluirDocumento', 1);
+    expect($doc->documento_formatado)->toBe('0000077')
+        ->and($doc->id_serie)->toBe('3')
+        ->and($doc->processo->is($req->seiProcesso))->toBeTrue();
+});
+
+it('marca operação incerta como concluída sem vínculo', function () {
+    Sei::fake()->respond('lancarAndamento', new ConnectionException('timeout', 'lancarAndamento', possivelmenteEnviada: true));
+    $processo = SeiProcesso::create(['conexao' => 'default', 'id_procedimento' => '1', 'protocolo_formatado' => 'P']);
+
+    rescue(fn () => Sei::idempotencia()->executar('and-1', 'default', 'lancarAndamento', fn () => Sei::andamentos()->atualizar('P', 'x')), report: false);
+
+    $this->artisan('sei:operacoes:resolver', ['chave' => 'and-1'])->assertExitCode(2);
+    $this->artisan('sei:operacoes:resolver', ['chave' => 'and-1', '--concluida' => true])->assertSuccessful();
+    $this->artisan('sei:operacoes:resolver', ['chave' => 'nao-existe', '--concluida' => true])->assertFailed();
+
+    expect(SeiOperacao::where('chave', 'and-1')->first()->status)->toBe(StatusOperacao::Concluida)
+        ->and($processo->exists)->toBeTrue();
+});

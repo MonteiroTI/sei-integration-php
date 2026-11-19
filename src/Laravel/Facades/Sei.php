@@ -25,6 +25,7 @@ use MonteiroTi\Sei\Laravel\Testing\SeiFake;
  * @method static string parametro(string $chave, ?string $conexao = null)
  * @method static \MonteiroTi\Sei\Laravel\Integracao\SeiIntegracao integracao(?string $conexao = null)
  * @method static \MonteiroTi\Sei\Laravel\Sincronizacao\Sincronizador sincronizador()
+ * @method static \MonteiroTi\Sei\Laravel\Integracao\Idempotencia idempotencia()
  *
  * @see SeiManager
  */
