@@ -27,7 +27,7 @@ O pacote é distribuído pelo GitHub. No `composer.json` da aplicação:
 ```
 
 ```bash
-composer require monteiroti/sei-integration:^0.1
+composer require monteiroti/sei-integration:^0.2
 ```
 
 Com vários sistemas usando o pacote, um repositório Composer privado evita repetir o bloco `repositories` e as credenciais do GitHub em cada projeto: [Private Packagist](https://packagist.com) (pago) ou [Satis](https://composer.github.io/satis/) (gratuito, hospedado pelo órgão). Nos dois casos, basta apontar o repositório para este GitHub e a aplicação passa a usar só `composer require`.

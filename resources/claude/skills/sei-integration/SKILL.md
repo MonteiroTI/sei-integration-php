@@ -66,7 +66,7 @@ Use a API "crua" (`Sei::processos()->gerar()`) para criar registros só em scrip
 ```
 
 ```bash
-composer require monteiroti/sei-integration:^0.1
+composer require monteiroti/sei-integration:^0.2
 php artisan vendor:publish --tag=sei-config
 php artisan vendor:publish --tag=sei-migrations   # módulo de persistência (vínculo, idempotência, sincronização)
 php artisan migrate

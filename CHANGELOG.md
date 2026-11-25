@@ -7,6 +7,10 @@ incompatíveis podem ocorrer entre versões menores e serão listadas aqui.
 
 ## [Não lançado]
 
+## [0.2.0] - 2026-11-25
+
+Ainda não validada contra um SEI de homologação.
+
 ### Adicionado
 
 - Novas tentativas automáticas de leituras (`consultar*`, `listar*`) após falha de conexão, com
@@ -76,5 +80,6 @@ parâmetros segue o manual do WebService 5.0 e será conferida com a WSDL real.
   (`php artisan vendor:publish --tag=sei-claude`).
 - Compatível com Laravel 12 e 13 (mínimo: Laravel 12).
 
-[Não lançado]: https://github.com/MonteiroTI/sei-integration-php/compare/v0.1.0...HEAD
+[Não lançado]: https://github.com/MonteiroTI/sei-integration-php/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/MonteiroTI/sei-integration-php/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/MonteiroTI/sei-integration-php/releases/tag/v0.1.0
