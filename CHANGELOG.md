@@ -24,6 +24,9 @@ incompatíveis podem ocorrer entre versões menores e serão listadas aqui.
   Operações incertas e erros de negócio continuam falhando de vez; com `dispatchSync` a exceção
   é relançada.
 
+- O `SoapTransport` só altera o `default_socket_timeout` quando ele é diferente do timeout da
+  conexão. O README documenta o cuidado com o Octane/Swoole.
+
 ### Corrigido
 
 - `uniqueId()` dos jobs de escrita usa a conexão padrão configurada (`sei.default`) em vez de

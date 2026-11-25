@@ -346,6 +346,10 @@ Quando o SEI cai, cada chamada esperaria o timeout inteiro e as filas entupiriam
 - No Laravel o estado fica no cache (`sei.cache.store`), compartilhado entre workers. `Sei::connection('x')->circuito()?->aberto()` consulta e `->fechar()` fecha manualmente.
 - Sem Laravel, o circuito vem desligado. Com `'circuito' => true` ele usa memória do processo, o que só faz sentido em workers longos; no PHP-FPM passe um `CircuitState` compartilhado a `SeiClient::transportFromConfig()`.
 
+### Octane e Swoole
+
+O `\SoapClient` lê a resposta usando o `default_socket_timeout` do PHP, então a biblioteca aplica o `timeout` da conexão com `ini_set` durante cada chamada e depois restaura o valor anterior. Esse valor vale para o processo todo. No Octane com Swoole e corrotinas, chamadas simultâneas de conexões com timeouts diferentes podem usar o timeout uma da outra. Nesse caso, configure o mesmo `timeout` em todas as conexões (ou deixe o `default_socket_timeout` do PHP igual a ele).
+
 ## 5. Testes na sua aplicação
 
 ```php
