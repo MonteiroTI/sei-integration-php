@@ -17,6 +17,18 @@ incompatíveis podem ocorrer entre versões menores e serão listadas aqui.
   depois de falhas de conexão seguidas, as chamadas falham na hora por um tempo. No Laravel fica
   ligado por padrão, com estado no cache; `SeiClient::circuito()` e `SeiManager::circuitos()`.
 
+### Alterado
+
+- `GerarProcessoSeiJob` e `IncluirDocumentoSeiJob` voltam à fila com backoff (até 5 tentativas)
+  quando a falha é segura de repetir (conexão não enviada, circuito aberto, lock ocupado).
+  Operações incertas e erros de negócio continuam falhando de vez; com `dispatchSync` a exceção
+  é relançada.
+
+### Corrigido
+
+- `uniqueId()` dos jobs de escrita usa a conexão padrão configurada (`sei.default`) em vez de
+  `default` fixo quando a conexão não é informada.
+
 ## [0.1.0] - 2026-11-25
 
 Primeira versão. Ainda não foi validada contra um SEI de homologação: a ordem dos

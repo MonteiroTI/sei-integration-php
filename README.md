@@ -463,12 +463,23 @@ php artisan sei:operacoes:resolver "<chave>" --descartar                     # n
 
 Para facilitar a conferência, a biblioteca acrescenta à **Observação** do processo um identificador do sistema (`[RH Requerimento #123]`, configurável em `sei.integracao.identificador`).
 
-Em fila, use os jobs (sem retry automático para não duplicar):
+Em fila, use os jobs:
 
 ```php
 GerarProcessoSeiJob::dispatch($requerimento, $procedimento, $documentos);
 IncluirDocumentoSeiJob::dispatch($requerimento, $documento, "despacho-{$despacho->id}");
 ```
+
+Os jobs só repetem o que é seguro repetir (até 5 tentativas, com esperas de 30 s, 2 min, 5 min e 15 min):
+
+| Falha | O job |
+|---|---|
+| `ConnectionException` que chega ao job (a requisição não chegou ao SEI, ou a operação é idempotente), inclusive `CircuitoAbertoException` | volta à fila com backoff |
+| `OperacaoEmAndamentoException` (outra execução tem o lock) | volta à fila com backoff |
+| `OperacaoIncertaException` | falha de vez: confira com `sei:operacoes` |
+| `FaultException`, `AccessDeniedException`, dados inválidos | falha de vez |
+
+Com `dispatchSync` (ou a conexão `sync`) a exceção é relançada para quem chamou.
 
 Prefira `Documento::externo(idArquivo: ...)` (enviando o arquivo antes com `enviarArquivo()`) a colocar bytes de arquivos no payload da fila.
 

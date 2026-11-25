@@ -169,11 +169,11 @@ final class RequerimentoSei
 ```php
 use MonteiroTi\Sei\Laravel\Jobs\{GerarProcessoSeiJob, IncluirDocumentoSeiJob};
 
-GerarProcessoSeiJob::dispatch($req, $procedimento, $documentos);           // tries = 1, único por registro
+GerarProcessoSeiJob::dispatch($req, $procedimento, $documentos);           // único por registro
 IncluirDocumentoSeiJob::dispatch($req, $documento, "despacho-{$despacho->id}");
 ```
 
-Os jobs **não** têm retry automático. Se precisar de retry, configure-o só para `ConnectionException` com `possivelmenteEnviada === false` ou `FaultException` corrigida: o ledger de idempotência já protege contra duplicidade nesses casos.
+Os jobs repetem sozinhos (até 5 tentativas, com backoff) só o que é seguro: `ConnectionException` que chega ao job (a idempotência já converteu as duvidosas em `OperacaoIncertaException`), `CircuitoAbertoException` e `OperacaoEmAndamentoException`. `OperacaoIncertaException` e erros de negócio (`FaultException`, `AccessDeniedException`) fazem o job falhar de vez. **Não** sobrescreva `$tries`/`backoff` para repetir operações incertas: elas exigem conferência (`sei:operacoes`).
 
 ### 4.6 Reagir a mudanças no SEI
 

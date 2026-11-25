@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Contracts\Queue\Job;
 use Illuminate\Support\Facades\Cache;
 use MonteiroTi\Sei\Core\Exceptions\ConnectionException;
 use MonteiroTi\Sei\Core\Exceptions\FaultException;
@@ -201,7 +202,7 @@ it('executa os jobs com idempotência', function () {
 
     $fake->assertCalledTimes('gerarProcedimento', 1)->assertCalledTimes('incluirDocumento', 1);
     expect($req->seiProcesso->documentos)->toHaveCount(2)
-        ->and((new GerarProcessoSeiJob($req, new Procedimento('1')))->tries)->toBe(1);
+        ->and((new GerarProcessoSeiJob($req, new Procedimento('1')))->tries)->toBe(5);
 });
 
 it('envia o processo uma vez por chave, na unidade informada, e antecipa a sincronização', function () {
@@ -256,4 +257,64 @@ it('marca operação incerta como concluída sem vínculo', function () {
 
     expect(SeiOperacao::where('chave', 'and-1')->first()->status)->toBe(StatusOperacao::Concluida)
         ->and($processo->exists)->toBeTrue();
+});
+
+/**
+ * Executa o job como se viesse de uma fila assíncrona, com um Job falso que registra release/fail.
+ */
+function rodarNaFila(object $job, int $tentativa = 1): Job
+{
+    $queueJob = Mockery::spy(Job::class);
+    $queueJob->shouldReceive('attempts')->andReturn($tentativa);
+    $job->setJob($queueJob);
+    app()->call([$job, 'handle']);
+
+    return $queueJob;
+}
+
+it('jobs devolvem à fila com backoff as falhas que não chegaram ao SEI', function () {
+    Sei::fake()->respond('gerarProcedimento', new ConnectionException('Could not connect to host', 'gerarProcedimento'));
+    $req = Requerimento::create();
+
+    $fila = rodarNaFila(new GerarProcessoSeiJob($req, new Procedimento('1')), tentativa: 2);
+
+    $fila->shouldHaveReceived('release')->with(120)->once();
+    $fila->shouldNotHaveReceived('fail');
+    expect(SeiOperacao::query()->firstOrFail()->status)->toBe(StatusOperacao::Falhou);
+});
+
+it('jobs falham de vez quando a operação fica incerta ou o SEI recusa', function () {
+    Sei::fake()
+        ->respond('gerarProcedimento', timeout())
+        ->respond('incluirDocumento', new FaultException('Série não liberada.', 'incluirDocumento'));
+    $req = Requerimento::create();
+
+    $fila = rodarNaFila(new GerarProcessoSeiJob($req, new Procedimento('1')));
+    $fila->shouldHaveReceived('fail')->withArgs(fn ($e) => $e instanceof OperacaoIncertaException)->once();
+    $fila->shouldNotHaveReceived('release');
+
+    $processo = SeiProcesso::create(['conexao' => 'default', 'id_procedimento' => '1', 'protocolo_formatado' => 'P']);
+    $fila = rodarNaFila(new IncluirDocumentoSeiJob($processo, Documento::gerado('3', conteudo: 'x'), 'doc-1'));
+    $fila->shouldHaveReceived('fail')->withArgs(fn ($e) => $e instanceof FaultException)->once();
+});
+
+it('jobs falham com a última exceção quando as tentativas acabam', function () {
+    Sei::fake()->respond('gerarProcedimento', new ConnectionException('Could not connect to host', 'gerarProcedimento'));
+    $job = new GerarProcessoSeiJob(Requerimento::create(), new Procedimento('1'));
+
+    $fila = rodarNaFila($job, tentativa: $job->tries);
+
+    $fila->shouldHaveReceived('fail')->withArgs(fn ($e) => $e instanceof ConnectionException)->once();
+    $fila->shouldNotHaveReceived('release');
+});
+
+it('jobs síncronos relançam a exceção e usam a conexão resolvida no uniqueId', function () {
+    Sei::fake()->respond('gerarProcedimento', new FaultException('Tipo de processo inválido.', 'gerarProcedimento'));
+    $req = Requerimento::create();
+
+    expect(fn () => GerarProcessoSeiJob::dispatchSync($req, new Procedimento('1')))->toThrow(FaultException::class);
+
+    config(['sei.default' => 'orgao-b']);
+    expect((new GerarProcessoSeiJob($req, new Procedimento('1')))->uniqueId())->toEndWith(':gerarProcedimento:orgao-b')
+        ->and((new IncluirDocumentoSeiJob($req, Documento::gerado('3', conteudo: 'x'), 'doc-1'))->uniqueId())->toBe('orgao-b:doc-1');
 });
