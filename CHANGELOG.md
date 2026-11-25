@@ -7,6 +7,11 @@ incompatíveis podem ocorrer entre versões menores e serão listadas aqui.
 
 ## [Não lançado]
 
+## [0.1.0] - 2026-11-25
+
+Primeira versão. Ainda não foi validada contra um SEI de homologação: a ordem dos
+parâmetros segue o manual do WebService 5.0 e será conferida com a WSDL real.
+
 ### Adicionado
 
 - Cliente do WebService SEI 5.0 (66 operações) e SIP (3 operações), com DTOs, enums,
@@ -30,3 +35,6 @@ incompatíveis podem ocorrer entre versões menores e serão listadas aqui.
 - Skill do Claude Code com o guia de integração em sistemas Laravel
   (`php artisan vendor:publish --tag=sei-claude`).
 - Compatível com Laravel 12 e 13 (mínimo: Laravel 12).
+
+[Não lançado]: https://github.com/MonteiroTI/sei-integration-php/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/MonteiroTI/sei-integration-php/releases/tag/v0.1.0
