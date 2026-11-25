@@ -271,6 +271,8 @@ it('abre o processo do requerimento', function () {
 - Asserções: `assertCalled($op, ?fn)`, `assertCalledTimes($op, $n)`, `assertNotCalled($op)`, `assertNothingCalled()`. Os argumentos recebidos são nomeados como no manual, já com `SiglaSistema`, `IdentificacaoServico` e `IdUnidade`.
 - Para testar timeout: `->respond('gerarProcedimento', new \MonteiroTi\Sei\Core\Exceptions\ConnectionException('timeout', 'gerarProcedimento', possivelmenteEnviada: true))` e espere `OperacaoIncertaException`.
 - Para testar a sincronização: crie um `SeiProcesso`, responda `consultarProcedimento` duas vezes (a primeira só registra o estado) e use `Event::fake([...eventos de Sincronizacao])`.
+- Prefira `MonteiroTi\Sei\Testing\Respostas` a montar arrays à mão: `Respostas::processoGerado('12.1.000000077-4', documentos: [Respostas::documentoIncluido('0000001')])`, `Respostas::processo(...)`, `Respostas::documento(...)`, `Respostas::andamento(...)`, `Respostas::assinatura(...)`.
+- Para fluxos com várias chamadas, use o SEI simulado: `$fake = Sei::fake()->simular()`. Ele gera protocolos (`12.1.000000001-1`, documentos `0000001`...) e responde às consultas com o que foi criado. Mude o estado com `$fake->sei()->tramitar($protocolo, '110000015')`, `->assinar('0000001', 'Maria')`, `->concluir($protocolo)` e `->lancarAndamento(...)`; confira a ordem com `assertCalledInOrder([...])`. Respostas de `respond()` têm prioridade sobre o simulador.
 
 ## 7. Diagnóstico rápido
 

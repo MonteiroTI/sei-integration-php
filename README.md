@@ -373,6 +373,47 @@ $sei->assertCalled('gerarProcedimento', fn (array $args) => $args['Procedimento'
 
 As respostas são o que o `\SoapClient` devolveria: arrays ou objetos com os nomes do SEI. Também podem ser uma `Closure` ou uma exceção a lançar. O fake cobre as conexões SEI e SIP.
 
+### Respostas prontas
+
+`MonteiroTi\Sei\Testing\Respostas` monta as respostas no formato do SEI, sem precisar decorar os nomes dos campos:
+
+```php
+use MonteiroTi\Sei\Testing\Respostas;
+
+Sei::fake()
+    ->respond('gerarProcedimento', Respostas::processoGerado('12.1.000000077-4', documentos: [Respostas::documentoIncluido('0003934')]))
+    ->respond('consultarProcedimento', Respostas::processo('12.1.000000077-4',
+        unidadesAbertas: ['110000015'],
+        ultimoAndamento: Respostas::andamento('1005', 65, 'Pagamento confirmado'),
+    ))
+    ->respond('consultarDocumento', Respostas::documento('0003934', '12.1.000000077-4', assinaturas: [Respostas::assinatura('Maria Souza')]));
+```
+
+Também há `unidade()`, `unidades(['110000001' => 'PROTOCOLO'])` e `series(['3' => 'Ofício'])`.
+
+### SEI simulado
+
+Para fluxos com várias chamadas, `simular()` liga um SEI em memória (`MonteiroTi\Sei\Testing\SeiSimulado`) que gera protocolos e responde às consultas de forma coerente com o que foi criado:
+
+```php
+$fake = Sei::fake()->simular();
+
+$processo = Sei::integracao()->gerarProcesso($requerimento, $procedimento, [$documento]);  // 12.1.000000001-1
+
+// Mude o estado como se um usuário agisse no SEI e rode a sincronização
+$fake->sei()->tramitar($processo->protocolo_formatado, '110000015');
+$fake->sei()->assinar('0000001', 'Maria Souza');
+$fake->sei()->concluir($processo->protocolo_formatado);
+Sei::sincronizador()->processo($processo->refresh());
+
+$fake->assertCalledInOrder(['gerarProcedimento', 'consultarProcedimento']);
+```
+
+- Simula `gerarProcedimento`, `incluirDocumento`, `consultarProcedimento`, `consultarDocumento`, `enviarProcesso`, `concluirProcesso`, `reabrirProcesso`, `lancarAndamento`, `listarAndamentos`, `listarUnidades` e o envio de arquivos em partes. As demais operações pedem `respond()`.
+- Respostas programadas com `respond()` têm prioridade sobre o simulador (útil para forçar um erro).
+- Não reproduz regras de negócio do SEI (permissões, tipos, séries), e os IDs de tarefa dos andamentos automáticos são ilustrativos (`SeiSimulado::TAREFA_*`).
+- Fora do Laravel: `$transport = new FakeTransport; $transport->simular();`.
+
 ## 6. Segurança e LGPD
 
 ### Permissões mínimas

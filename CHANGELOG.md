@@ -20,6 +20,9 @@ incompatíveis podem ocorrer entre versões menores e serão listadas aqui.
   ligado por padrão, com estado no cache; `SeiClient::circuito()` e `SeiManager::circuitos()`.
 - Andamentos intermediários na sincronização: com `sei.sincronizacao.andamentos.tarefas`, cada
   andamento dessas tarefas entre duas consultas gera um `NovoAndamentoSei` (`intermediario = true`).
+- Testes: `MonteiroTi\Sei\Testing\Respostas` (respostas prontas no formato do SEI) e
+  `SeiSimulado`, um SEI em memória ligado com `Sei::fake()->simular()` ou
+  `FakeTransport::simular()`; `SeiFake::sei()` e `SeiFake::assertCalledInOrder()`.
 
 ### Alterado
 

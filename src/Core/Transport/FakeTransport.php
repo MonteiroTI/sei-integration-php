@@ -6,6 +6,7 @@ namespace MonteiroTi\Sei\Core\Transport;
 
 use Closure;
 use MonteiroTi\Sei\Core\Exceptions\SeiException;
+use MonteiroTi\Sei\Testing\SeiSimulado;
 
 /**
  * Transporte em memória para testes: devolve respostas programadas e registra as chamadas.
@@ -20,6 +21,22 @@ final class FakeTransport implements Transport
 
     /** @var list<array{operation: string, arguments: array<string, mixed>}> */
     private array $calls = [];
+
+    private ?SeiSimulado $simulado = null;
+
+    /**
+     * Usa um SEI em memória para as operações sem resposta programada.
+     * Respostas programadas com respond() continuam tendo prioridade.
+     */
+    public function simular(?SeiSimulado $sei = null): SeiSimulado
+    {
+        return $this->simulado = $sei ?? $this->simulado ?? new SeiSimulado;
+    }
+
+    public function simulado(): ?SeiSimulado
+    {
+        return $this->simulado;
+    }
 
     /**
      * Programa a resposta de uma operação. Respostas enfileiradas são consumidas em ordem;
@@ -44,6 +61,8 @@ final class FakeTransport implements Transport
             $response = array_shift($this->queues[$operation]);
         } elseif (array_key_exists($operation, $this->defaults)) {
             $response = $this->defaults[$operation];
+        } elseif ($this->simulado !== null) {
+            return $this->simulado->call($operation, $arguments);
         } else {
             throw new SeiException(sprintf('FakeTransport: nenhuma resposta programada para "%s".', $operation), $operation);
         }
@@ -80,5 +99,6 @@ final class FakeTransport implements Transport
     public function reset(): void
     {
         $this->queues = $this->defaults = $this->calls = [];
+        $this->simulado = null;
     }
 }
