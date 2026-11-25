@@ -166,6 +166,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Health check (rota /up do Laravel)
+    |--------------------------------------------------------------------------
+    |
+    | Com 'up' = true, a rota /up responde 500 quando o circuit breaker de uma das
+    | conexões abaixo está aberto (o SEI parou de responder). Não faz chamada de rede.
+    |
+    */
+
+    'saude' => [
+        'up' => (bool) env('SEI_SAUDE_UP', false),
+        // Conexões SEI monitoradas (null: a padrão)
+        'conexoes' => null,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Integração de alto nível (Sei::integracao())
     |--------------------------------------------------------------------------
     |

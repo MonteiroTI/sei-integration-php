@@ -28,6 +28,9 @@ incompatíveis podem ocorrer entre versões menores e serão listadas aqui.
   ordem. Novo script `composer test:gravar`.
 - O mascaramento de dados pessoais também trata `Assinaturas`, `Usuario` e `UsuarioAtribuicao`
   como estruturas de pessoa.
+- Health check: com `sei.saude.up` (`SEI_SAUDE_UP`), a rota `/up` do Laravel falha quando o
+  circuito de uma conexão monitorada (`sei.saude.conexoes`) está aberto. `sei:ping` mostra o
+  estado do circuito.
 
 ### Alterado
 

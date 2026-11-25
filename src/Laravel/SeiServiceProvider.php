@@ -6,6 +6,7 @@ namespace MonteiroTi\Sei\Laravel;
 
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Container\Container;
+use Illuminate\Foundation\Events\DiagnosingHealth;
 use Illuminate\Support\ServiceProvider;
 use MonteiroTi\Sei\Laravel\Console\CatalogoCommand;
 use MonteiroTi\Sei\Laravel\Console\OperacoesCommand;
@@ -14,6 +15,7 @@ use MonteiroTi\Sei\Laravel\Console\ResolverOperacaoCommand;
 use MonteiroTi\Sei\Laravel\Console\SincronizarCommand;
 use MonteiroTi\Sei\Laravel\Console\ValidarParametrosCommand;
 use MonteiroTi\Sei\Laravel\Console\WsdlCommand;
+use MonteiroTi\Sei\Laravel\Saude\VerificarCircuitos;
 use MonteiroTi\Sei\SeiClient;
 use MonteiroTi\Sei\Sip\SipClient;
 
@@ -59,6 +61,11 @@ final class SeiServiceProvider extends ServiceProvider
                 SincronizarCommand::class,
                 WsdlCommand::class,
             ]);
+        }
+
+        // Health check: a rota /up do Laravel falha quando o circuito de uma conexão monitorada está aberto.
+        if (config('sei.saude.up', false) && class_exists(DiagnosingHealth::class)) {
+            $this->app->make('events')->listen(DiagnosingHealth::class, VerificarCircuitos::class);
         }
 
         if (config('sei.sincronizacao.agendar', false)) {

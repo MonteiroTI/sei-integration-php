@@ -468,6 +468,19 @@ Com `SEI_LOG=true`, cada chamada é registrada com duração e argumentos, no ca
 | `sei.log.dados_pessoais` | `mascarar` | `mascarar`, `remover` (omite o campo) ou `manter` |
 | `sei.log.chaves_extras` | `[]` | Outras chaves a tratar como dado pessoal |
 
+### Health check (`/up`)
+
+Com `SEI_SAUDE_UP=true`, a rota `/up` do Laravel responde 500 quando o circuit breaker de uma conexão monitorada está aberto, ou seja, quando o SEI parou de responder. O check não faz chamada de rede: só lê o estado do circuito no cache.
+
+```php
+'saude' => [
+    'up' => (bool) env('SEI_SAUDE_UP', false),
+    'conexoes' => null,   // null: a conexão padrão; ou ['default', 'orgao-b']
+],
+```
+
+Avalie antes de ligar: se o balanceador usa o `/up` para tirar instâncias do ar, uma queda do SEI derrubaria a aplicação inteira. Nesse caso, use um monitor separado. `php artisan sei:ping` também mostra se o circuito está aberto.
+
 ### Eventos
 
 `SeiRequestSending` (argumentos mascarados), `SeiResponseReceived` e `SeiRequestFailed`, em `MonteiroTi\Sei\Laravel\Events`, servem para métricas e auditoria. Os dois últimos trazem o retorno e a exceção **originais**: não os registre sem mascarar (`app(SeiManager::class)->redactor()`).

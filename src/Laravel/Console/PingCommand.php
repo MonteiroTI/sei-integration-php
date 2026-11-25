@@ -45,6 +45,14 @@ final class PingCommand extends Command
             }
 
             $client = $manager->connection($name);
+            $circuito = $client->circuito();
+            $abertoAte = $circuito?->abertoAte();
+            if ($circuito !== null && $circuito->aberto() && $abertoAte !== null) {
+                $this->components->warn(sprintf(
+                    'Circuito aberto até %s: o SEI falhou nas últimas chamadas e novas chamadas estão suspensas.',
+                    date('H:i:s', $abertoAte),
+                ));
+            }
             $permitidas = $client->operacoesPermitidas();
             if (count($permitidas) < count(SeiOperations::all())) {
                 $this->components->info(sprintf('Operações liberadas nesta conexão (%d): %s', count($permitidas), implode(', ', $permitidas)));
