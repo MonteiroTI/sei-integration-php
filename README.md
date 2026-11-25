@@ -30,6 +30,8 @@ O pacote é distribuído pelo GitHub. No `composer.json` da aplicação:
 composer require monteiroti/sei-integration:^0.1
 ```
 
+Com vários sistemas usando o pacote, um repositório Composer privado evita repetir o bloco `repositories` e as credenciais do GitHub em cada projeto: [Private Packagist](https://packagist.com) (pago) ou [Satis](https://composer.github.io/satis/) (gratuito, hospedado pelo órgão). Nos dois casos, basta apontar o repositório para este GitHub e a aplicação passa a usar só `composer require`.
+
 As versões seguem [SemVer](https://semver.org/lang/pt-BR/) e estão no [CHANGELOG](CHANGELOG.md). Enquanto a versão for `0.x`, mudanças incompatíveis podem ocorrer entre versões menores.
 
 No Laravel, o provider é registrado sozinho. Para publicar a configuração:
@@ -76,6 +78,8 @@ SIP_CHAVE_ACESSO=chave-de-acesso-do-sip
 SIP_ID_SISTEMA=100000100
 ```
 
+A conexão SIP aceita as mesmas opções de transporte da SEI (`location`, `timeout`, `connection_timeout`, `verify_ssl`, `wsdl_cache`, `proxy_host`/`proxy_port`, `soap_options`, `retry`, `circuito`).
+
 Para usar várias conexões (outro órgão, homologação, outro serviço com outras operações), acrescente entradas em `config/sei.php`:
 
 ```php
@@ -100,6 +104,7 @@ Para usar várias conexões (outro órgão, homologação, outro serviço com ou
 | `conteudo_charset` | `UTF-8` | Charset do HTML de documentos gerados antes do Base64 (`UTF-8` ou `ISO-8859-1`) |
 | `timeout` / `connection_timeout` | `60` / `10` | Tempos máximos, em segundos |
 | `verify_ssl` | `true` | Valida o certificado do servidor |
+| `proxy_host` / `proxy_port` | `null` | Proxy HTTP de saída (`SEI_PROXY_HOST`, `SEI_PROXY_PORT`) |
 | `upload_chunk_size` | 5 MB | Tamanho de cada parte em `enviarArquivo()` |
 | `soap_options` | `[]` | Opções extras para o `\SoapClient` |
 | `retry` | 2 tentativas | Novas tentativas de leituras após falha de conexão (`false` desliga). Veja [Falhas de conexão](#falhas-de-conexão) |

@@ -40,6 +40,9 @@ return [
             'connection_timeout' => (int) env('SEI_CONNECTION_TIMEOUT', 10),
             'verify_ssl' => (bool) env('SEI_VERIFY_SSL', true),
             'wsdl_cache' => WSDL_CACHE_BOTH,
+            // Proxy HTTP de saída (null: sem proxy)
+            'proxy_host' => env('SEI_PROXY_HOST'),
+            'proxy_port' => env('SEI_PROXY_PORT'),
             // Tamanho de cada parte em Documentos::enviarArquivo() (bytes)
             'upload_chunk_size' => 5 * 1024 * 1024,
             'soap_options' => [],
@@ -108,8 +111,16 @@ return [
                 'wsdl' => env('SIP_WSDL'),
                 'chave_acesso' => env('SIP_CHAVE_ACESSO'),
                 'id_sistema' => env('SIP_ID_SISTEMA'),
+                // Endpoint alternativo ao declarado na WSDL (ex.: atrás de proxy reverso)
+                'location' => env('SIP_LOCATION'),
                 'timeout' => (int) env('SIP_TIMEOUT', 60),
+                'connection_timeout' => (int) env('SIP_CONNECTION_TIMEOUT', 10),
                 'verify_ssl' => (bool) env('SIP_VERIFY_SSL', true),
+                'wsdl_cache' => WSDL_CACHE_BOTH,
+                // Proxy HTTP de saída (null: sem proxy)
+                'proxy_host' => env('SIP_PROXY_HOST', env('SEI_PROXY_HOST')),
+                'proxy_port' => env('SIP_PROXY_PORT', env('SEI_PROXY_PORT')),
+                'soap_options' => [],
                 // Novas tentativas de listarPermissao após falha de conexão (false desliga)
                 'retry' => ['tentativas' => (int) env('SIP_RETRY_TENTATIVAS', 2)],
                 // Circuit breaker (false desliga)

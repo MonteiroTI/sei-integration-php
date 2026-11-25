@@ -13,6 +13,8 @@ incompatíveis podem ocorrer entre versões menores e serão listadas aqui.
   backoff exponencial e jitter (`retry` por conexão SEI e SIP; `RetryingTransport`, `RetryOptions`).
   Escritas nunca são repetidas pelo transporte.
 - `SeiConfig::leitura()` e `SeiConfig::casa()` (curingas de operação) públicos.
+- `config/sei.php` expõe `proxy_host`/`proxy_port` nas conexões SEI e as opções de transporte que
+  faltavam na conexão SIP (`location`, `connection_timeout`, `wsdl_cache`, proxy, `soap_options`).
 - Circuit breaker por conexão (`circuito`; `CircuitBreakerTransport`, `CircuitoAbertoException`):
   depois de falhas de conexão seguidas, as chamadas falham na hora por um tempo. No Laravel fica
   ligado por padrão, com estado no cache; `SeiClient::circuito()` e `SeiManager::circuitos()`.
