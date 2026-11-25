@@ -42,6 +42,10 @@
     "scripts": {
         "test": "pest --exclude-group=integration",
         "test:integration": "pest --group=integration",
+        "test:gravar": [
+            "@putenv SEI_TEST_GRAVAR=tests/Fixtures/gravacoes",
+            "pest --group=integration"
+        ],
         "analyse": "phpstan analyse --memory-limit=1G",
         "format": "pint",
         "wsdl:baixar": "@php bin/baixar-wsdl-homologacao.php"

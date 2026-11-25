@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace MonteiroTi\Sei\Core\Transport;
 
 use Closure;
+use MonteiroTi\Sei\Core\Exceptions\AccessDeniedException;
+use MonteiroTi\Sei\Core\Exceptions\ConnectionException;
+use MonteiroTi\Sei\Core\Exceptions\FaultException;
 use MonteiroTi\Sei\Core\Exceptions\SeiException;
+use MonteiroTi\Sei\Core\Exceptions\ValidationException;
 use MonteiroTi\Sei\Testing\SeiSimulado;
 
 /**
@@ -51,6 +55,49 @@ final class FakeTransport implements Transport
         }
 
         return $this;
+    }
+
+    /**
+     * Programa as respostas gravadas com GravadorTransport, na ordem em que foram gravadas.
+     * Erros gravados viram a exceção correspondente.
+     */
+    public function reproduzir(string $diretorio): self
+    {
+        $arquivos = glob(rtrim($diretorio, '/').'/*.json') ?: [];
+        if ($arquivos === []) {
+            throw new \InvalidArgumentException("Nenhuma gravação encontrada em {$diretorio}.");
+        }
+        sort($arquivos);
+
+        foreach ($arquivos as $arquivo) {
+            $registro = json_decode((string) file_get_contents($arquivo), true, flags: JSON_THROW_ON_ERROR);
+            if (! is_array($registro) || ! is_string($registro['operacao'] ?? null)) {
+                throw new \InvalidArgumentException("Gravação inválida: {$arquivo}.");
+            }
+
+            $operacao = $registro['operacao'];
+            $erro = $registro['erro'] ?? null;
+            $this->respond($operacao, is_array($erro) ? self::excecao($erro, $operacao) : ($registro['resposta'] ?? null));
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $erro
+     */
+    private static function excecao(array $erro, string $operacao): SeiException
+    {
+        $mensagem = is_string($erro['mensagem'] ?? null) ? $erro['mensagem'] : 'Erro gravado.';
+        $classe = $erro['classe'] ?? null;
+
+        return match (true) {
+            $classe === FaultException::class => new FaultException($mensagem, $operacao),
+            $classe === AccessDeniedException::class => new AccessDeniedException($mensagem, $operacao),
+            $classe === ValidationException::class => new ValidationException($mensagem, $operacao),
+            is_string($classe) && is_a($classe, ConnectionException::class, true) => new ConnectionException($mensagem, $operacao),
+            default => new SeiException($mensagem, $operacao),
+        };
     }
 
     public function call(string $operation, array $arguments): mixed

@@ -23,6 +23,11 @@ incompatíveis podem ocorrer entre versões menores e serão listadas aqui.
 - Testes: `MonteiroTi\Sei\Testing\Respostas` (respostas prontas no formato do SEI) e
   `SeiSimulado`, um SEI em memória ligado com `Sei::fake()->simular()` ou
   `FakeTransport::simular()`; `SeiFake::sei()` e `SeiFake::assertCalledInOrder()`.
+- Gravação e reprodução de respostas: `GravadorTransport` grava chamadas reais com dados pessoais
+  mascarados; `FakeTransport::reproduzir()` / `Sei::fake()->reproduzir()` as devolvem na mesma
+  ordem. Novo script `composer test:gravar`.
+- O mascaramento de dados pessoais também trata `Assinaturas`, `Usuario` e `UsuarioAtribuicao`
+  como estruturas de pessoa.
 
 ### Alterado
 

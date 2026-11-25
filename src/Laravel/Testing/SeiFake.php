@@ -40,6 +40,14 @@ final class SeiFake
         return $this;
     }
 
+    /** Responde com as gravações de GravadorTransport (ex.: tests/Fixtures/gravacoes). */
+    public function reproduzir(string $diretorio): self
+    {
+        $this->transport->reproduzir($diretorio);
+
+        return $this;
+    }
+
     /** O SEI simulado, para mudar o estado nos testes (tramitar, assinar, concluir...). */
     public function sei(): SeiSimulado
     {

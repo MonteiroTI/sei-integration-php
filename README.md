@@ -414,6 +414,19 @@ $fake->assertCalledInOrder(['gerarProcedimento', 'consultarProcedimento']);
 - Não reproduz regras de negócio do SEI (permissões, tipos, séries), e os IDs de tarefa dos andamentos automáticos são ilustrativos (`SeiSimulado::TAREFA_*`).
 - Fora do Laravel: `$transport = new FakeTransport; $transport->simular();`.
 
+### Respostas gravadas da homologação
+
+`MonteiroTi\Sei\Testing\GravadorTransport` grava cada chamada (operação, argumentos e resposta ou erro) em um JSON, e `Sei::fake()->reproduzir($diretorio)` (ou `FakeTransport::reproduzir()`) devolve essas respostas na mesma ordem. Assim os testes usam o formato exato que o seu SEI devolve:
+
+```php
+$sei = new SeiClient(new GravadorTransport(SeiClient::transportFromConfig($config), 'tests/Fixtures/sei'), SeiConfig::fromArray($config));
+// ... chamadas reais na homologação ...
+
+Sei::fake()->reproduzir(base_path('tests/Fixtures/sei'));
+```
+
+As gravações vão para o repositório, por isso passam por mascaramento: credenciais nunca são gravadas; CPF, CNPJ, e-mail e nomes de interessados, signatários e usuários saem como nos logs; textos livres que costumam citar pessoas (`Especificacao`, `Observacao`, `Descricao`, `Valor`...) viram `***`; conteúdos Base64 são resumidos. **Revise os arquivos antes de commitar.**
+
 ## 6. Segurança e LGPD
 
 ### Permissões mínimas
@@ -652,6 +665,7 @@ composer format            # Laravel Pint
 composer wsdl:baixar        # salva tests/Fixtures/sei-5.0.wsdl e sip.wsdl
 composer test               # o teste de contrato confere operação por operação com a WSDL real
 composer test:integration   # cria e conclui processos reais na homologação
+composer test:gravar        # o mesmo, gravando as respostas (mascaradas) em tests/Fixtures/gravacoes
 ```
 
 No teste de integração, abra o documento gerado no editor do SEI e confira os acentos: se aparecerem trocados, use `SEI_CONTEUDO_CHARSET=ISO-8859-1`.

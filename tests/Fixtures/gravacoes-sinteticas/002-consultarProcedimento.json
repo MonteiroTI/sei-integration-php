@@ -1,0 +1,20 @@
+{
+    "operacao": "consultarProcedimento",
+    "argumentos": {
+        "SiglaSistema": "SISTEMA",
+        "IdentificacaoServico": "***",
+        "IdUnidade": "110000001",
+        "ProtocoloProcedimento": "12.1.000000077-4"
+    },
+    "resposta": {
+        "IdProcedimento": "1210000000774",
+        "ProcedimentoFormatado": "12.1.000000077-4",
+        "Especificacao": "***",
+        "DataAutuacao": "01/12/2026",
+        "NivelAcessoLocal": "0",
+        "NivelAcessoGlobal": "0",
+        "UnidadesProcedimentoAberto": [
+            {"Unidade": {"IdUnidade": "110000001", "Sigla": "PROTOCOLO", "Descricao": "***"}, "UsuarioAtribuicao": null}
+        ]
+    }
+}
