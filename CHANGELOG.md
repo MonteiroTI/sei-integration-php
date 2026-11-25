@@ -7,6 +7,13 @@ incompatíveis podem ocorrer entre versões menores e serão listadas aqui.
 
 ## [Não lançado]
 
+### Adicionado
+
+- Novas tentativas automáticas de leituras (`consultar*`, `listar*`) após falha de conexão, com
+  backoff exponencial e jitter (`retry` por conexão SEI e SIP; `RetryingTransport`, `RetryOptions`).
+  Escritas nunca são repetidas pelo transporte.
+- `SeiConfig::leitura()` e `SeiConfig::casa()` (curingas de operação) públicos.
+
 ## [0.1.0] - 2026-11-25
 
 Primeira versão. Ainda não foi validada contra um SEI de homologação: a ordem dos

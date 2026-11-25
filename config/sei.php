@@ -44,6 +44,15 @@ return [
             'upload_chunk_size' => 5 * 1024 * 1024,
             'soap_options' => [],
 
+            // Novas tentativas de leituras (consultar*, listar*) após falha de conexão, com backoff
+            // exponencial. Escritas nunca são repetidas aqui. false desliga.
+            'retry' => [
+                'tentativas' => (int) env('SEI_RETRY_TENTATIVAS', 2),
+                'espera_ms' => 200,
+                'multiplicador' => 2,
+                'espera_max_ms' => 2000,
+            ],
+
             // Permissões mínimas: bloqueia localmente operações fora da lista (aceita curinga *).
             // Null libera todas. Libere também apenas essas operações no cadastro do serviço no SEI.
             'operacoes' => null,
@@ -93,6 +102,8 @@ return [
                 'id_sistema' => env('SIP_ID_SISTEMA'),
                 'timeout' => (int) env('SIP_TIMEOUT', 60),
                 'verify_ssl' => (bool) env('SIP_VERIFY_SSL', true),
+                // Novas tentativas de listarPermissao após falha de conexão (false desliga)
+                'retry' => ['tentativas' => (int) env('SIP_RETRY_TENTATIVAS', 2)],
             ],
         ],
     ],

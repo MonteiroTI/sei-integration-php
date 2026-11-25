@@ -12,11 +12,13 @@ use MonteiroTi\Sei\Api\Documentos;
 use MonteiroTi\Sei\Api\Ouvidoria;
 use MonteiroTi\Sei\Api\Processos;
 use MonteiroTi\Sei\Api\Publicacoes;
+use MonteiroTi\Sei\Core\Config\RetryOptions;
 use MonteiroTi\Sei\Core\Config\SeiConfig;
 use MonteiroTi\Sei\Core\Config\TransportOptions;
 use MonteiroTi\Sei\Core\Exceptions\AccessDeniedException;
 use MonteiroTi\Sei\Core\Exceptions\InvalidArgumentException;
 use MonteiroTi\Sei\Core\Support\CatalogCache;
+use MonteiroTi\Sei\Core\Transport\RetryingTransport;
 use MonteiroTi\Sei\Core\Transport\SoapTransport;
 use MonteiroTi\Sei\Core\Transport\Transport;
 use MonteiroTi\Sei\Operations\SeiOperations;
@@ -40,13 +42,26 @@ final class SeiClient
      *
      * Chaves: wsdl, sigla_sistema, identificacao_servico, id_unidade, location, encoding,
      * conteudo_charset, timeout, connection_timeout, verify_ssl, wsdl_cache, upload_chunk_size,
-     * proxy_host, proxy_port, soap_options.
+     * proxy_host, proxy_port, soap_options, retry (false desliga).
      *
      * @param  array<string, mixed>  $config
      */
     public static function create(array $config, ?CatalogCache $cache = null): self
     {
-        return new self(new SoapTransport(TransportOptions::fromArray($config)), SeiConfig::fromArray($config), $cache);
+        return new self(self::transportFromConfig($config), SeiConfig::fromArray($config), $cache);
+    }
+
+    /**
+     * Monta o transporte SOAP com as camadas configuradas (retry de leituras).
+     *
+     * @param  array<string, mixed>  $config
+     */
+    public static function transportFromConfig(array $config): Transport
+    {
+        $transport = new SoapTransport(TransportOptions::fromArray($config));
+        $retry = RetryOptions::fromConfig($config['retry'] ?? null);
+
+        return $retry === null ? $transport : new RetryingTransport($transport, $retry);
     }
 
     /** Cópia do cliente operando na unidade informada. */

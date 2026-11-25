@@ -102,6 +102,7 @@ Para usar várias conexões (outro órgão, homologação, outro serviço com ou
 | `verify_ssl` | `true` | Valida o certificado do servidor |
 | `upload_chunk_size` | 5 MB | Tamanho de cada parte em `enviarArquivo()` |
 | `soap_options` | `[]` | Opções extras para o `\SoapClient` |
+| `retry` | 2 tentativas | Novas tentativas de leituras após falha de conexão (`false` desliga). Veja [Falhas de conexão](#falhas-de-conexão) |
 
 ### IDs do SEI por nome (`parametros`)
 
@@ -312,6 +313,25 @@ Todas as exceções herdam de `MonteiroTi\Sei\Core\Exceptions\SeiException`, que
 | `InvalidArgumentException` | Dados inválidos detectados antes da chamada |
 | `OperacaoIncertaException` | Módulo de persistência: a operação pode ter sido executada no SEI; exige conferência (`sei:operacoes`) |
 | `OperacaoEmAndamentoException` | Módulo de persistência: outra execução com a mesma chave está em andamento |
+
+### Falhas de conexão
+
+Leituras (`consultar*` e `listar*`, inclusive o `listarPermissao` do SIP) são repetidas automaticamente quando a falha é de conexão (`ConnectionException`), com espera exponencial e *jitter*:
+
+```php
+'retry' => [
+    'tentativas' => 2,        // novas tentativas depois da primeira (0 ou false desliga)
+    'espera_ms' => 200,       // 200 ms, 400 ms, ... (sorteado entre a metade e o valor)
+    'multiplicador' => 2,
+    'espera_max_ms' => 2000,
+],
+```
+
+- Escritas **nunca** são repetidas pelo transporte: um timeout depois do envio poderia duplicar o efeito no SEI. Para elas, use o [módulo de idempotência](#7-módulo-de-persistência-vínculo-idempotência-e-sincronização).
+- Erros de negócio (`FaultException`, `AccessDeniedException`...) não são repetidos.
+- Cada tentativa gera seu próprio log e evento (`SeiRequestFailed`); o aviso de nova tentativa vai para o canal de `sei.log`.
+- Uma leitura pode levar até `(tentativas + 1) × timeout`, mais as esperas. Leve isso em conta no `timeout` de jobs e requisições HTTP.
+- Com `Sei::fake()` não há retry.
 
 ## 5. Testes na sua aplicação
 
