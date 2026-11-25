@@ -53,6 +53,14 @@ return [
                 'espera_max_ms' => 2000,
             ],
 
+            // Circuit breaker: depois de 'falhas' falhas de conexão em 'janela_segundos', as chamadas
+            // falham na hora (CircuitoAbertoException) por 'aberto_segundos'. Estado no cache. false desliga.
+            'circuito' => [
+                'falhas' => (int) env('SEI_CIRCUITO_FALHAS', 5),
+                'janela_segundos' => 60,
+                'aberto_segundos' => (int) env('SEI_CIRCUITO_ABERTO_SEGUNDOS', 30),
+            ],
+
             // Permissões mínimas: bloqueia localmente operações fora da lista (aceita curinga *).
             // Null libera todas. Libere também apenas essas operações no cadastro do serviço no SEI.
             'operacoes' => null,
@@ -104,6 +112,8 @@ return [
                 'verify_ssl' => (bool) env('SIP_VERIFY_SSL', true),
                 // Novas tentativas de listarPermissao após falha de conexão (false desliga)
                 'retry' => ['tentativas' => (int) env('SIP_RETRY_TENTATIVAS', 2)],
+                // Circuit breaker (false desliga)
+                'circuito' => ['falhas' => 5, 'janela_segundos' => 60, 'aberto_segundos' => 30],
             ],
         ],
     ],

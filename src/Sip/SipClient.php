@@ -8,6 +8,7 @@ use MonteiroTi\Sei\Core\Config\SipConfig;
 use MonteiroTi\Sei\Core\Exceptions\InvalidArgumentException;
 use MonteiroTi\Sei\Core\Support\SoapData;
 use MonteiroTi\Sei\Core\Support\Values;
+use MonteiroTi\Sei\Core\Transport\CircuitBreakerTransport;
 use MonteiroTi\Sei\Core\Transport\Transport;
 use MonteiroTi\Sei\SeiClient;
 use MonteiroTi\Sei\Sip\Dto\FiltroPermissao;
@@ -31,7 +32,7 @@ final class SipClient
      */
     public static function create(array $config): self
     {
-        return new self(SeiClient::transportFromConfig($config), SipConfig::fromArray($config));
+        return new self(SeiClient::transportFromConfig($config, 'sip'), SipConfig::fromArray($config));
     }
 
     /**
@@ -121,5 +122,11 @@ final class SipClient
     public function transport(): Transport
     {
         return $this->transport;
+    }
+
+    /** Circuit breaker da conexão (null se desligado). */
+    public function circuito(): ?CircuitBreakerTransport
+    {
+        return $this->transport instanceof CircuitBreakerTransport ? $this->transport : null;
     }
 }

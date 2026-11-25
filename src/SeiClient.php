@@ -12,12 +12,16 @@ use MonteiroTi\Sei\Api\Documentos;
 use MonteiroTi\Sei\Api\Ouvidoria;
 use MonteiroTi\Sei\Api\Processos;
 use MonteiroTi\Sei\Api\Publicacoes;
+use MonteiroTi\Sei\Core\Config\CircuitOptions;
 use MonteiroTi\Sei\Core\Config\RetryOptions;
 use MonteiroTi\Sei\Core\Config\SeiConfig;
 use MonteiroTi\Sei\Core\Config\TransportOptions;
 use MonteiroTi\Sei\Core\Exceptions\AccessDeniedException;
 use MonteiroTi\Sei\Core\Exceptions\InvalidArgumentException;
 use MonteiroTi\Sei\Core\Support\CatalogCache;
+use MonteiroTi\Sei\Core\Transport\CircuitBreakerTransport;
+use MonteiroTi\Sei\Core\Transport\CircuitState;
+use MonteiroTi\Sei\Core\Transport\InMemoryCircuitState;
 use MonteiroTi\Sei\Core\Transport\RetryingTransport;
 use MonteiroTi\Sei\Core\Transport\SoapTransport;
 use MonteiroTi\Sei\Core\Transport\Transport;
@@ -42,7 +46,7 @@ final class SeiClient
      *
      * Chaves: wsdl, sigla_sistema, identificacao_servico, id_unidade, location, encoding,
      * conteudo_charset, timeout, connection_timeout, verify_ssl, wsdl_cache, upload_chunk_size,
-     * proxy_host, proxy_port, soap_options, retry (false desliga).
+     * proxy_host, proxy_port, soap_options, retry (false desliga), circuito (desligado por padrão).
      *
      * @param  array<string, mixed>  $config
      */
@@ -52,16 +56,28 @@ final class SeiClient
     }
 
     /**
-     * Monta o transporte SOAP com as camadas configuradas (retry de leituras).
+     * Monta o transporte SOAP com as camadas configuradas: Circuito(Retry(Soap)).
+     *
+     * Fora do Laravel o circuito fica em memória do processo e só é ligado com a opção
+     * "circuito" (true ou array). Passe um CircuitState compartilhado para usá-lo no PHP-FPM.
      *
      * @param  array<string, mixed>  $config
      */
-    public static function transportFromConfig(array $config): Transport
+    public static function transportFromConfig(array $config, string $chave = 'sei', ?CircuitState $circuitState = null): Transport
     {
         $transport = new SoapTransport(TransportOptions::fromArray($config));
-        $retry = RetryOptions::fromConfig($config['retry'] ?? null);
 
-        return $retry === null ? $transport : new RetryingTransport($transport, $retry);
+        $retry = RetryOptions::fromConfig($config['retry'] ?? null);
+        if ($retry !== null) {
+            $transport = new RetryingTransport($transport, $retry);
+        }
+
+        $circuito = CircuitOptions::fromConfig($config['circuito'] ?? null, padraoAtivo: false);
+        if ($circuito !== null) {
+            $transport = new CircuitBreakerTransport($transport, $circuito, $circuitState ?? new InMemoryCircuitState, $chave);
+        }
+
+        return $transport;
     }
 
     /** Cópia do cliente operando na unidade informada. */
@@ -131,6 +147,12 @@ final class SeiClient
     public function transport(): Transport
     {
         return $this->transport;
+    }
+
+    /** Circuit breaker da conexão (null se desligado). */
+    public function circuito(): ?CircuitBreakerTransport
+    {
+        return $this->transport instanceof CircuitBreakerTransport ? $this->transport : null;
     }
 
     /**

@@ -103,6 +103,7 @@ Para usar várias conexões (outro órgão, homologação, outro serviço com ou
 | `upload_chunk_size` | 5 MB | Tamanho de cada parte em `enviarArquivo()` |
 | `soap_options` | `[]` | Opções extras para o `\SoapClient` |
 | `retry` | 2 tentativas | Novas tentativas de leituras após falha de conexão (`false` desliga). Veja [Falhas de conexão](#falhas-de-conexão) |
+| `circuito` | 5 falhas / 60 s → 30 s | Circuit breaker da conexão (`false` desliga). Veja [Falhas de conexão](#falhas-de-conexão) |
 
 ### IDs do SEI por nome (`parametros`)
 
@@ -307,6 +308,7 @@ Todas as exceções herdam de `MonteiroTi\Sei\Core\Exceptions\SeiException`, que
 | Exceção | Quando |
 |---|---|
 | `ConnectionException` | WSDL inacessível, timeout, falha de rede ou SSL |
+| `CircuitoAbertoException` | Subclasse de `ConnectionException`: falhas seguidas na conexão, chamada suspensa sem ser enviada |
 | `AccessDeniedException` | Sistema, serviço, chave, operação, unidade ou tipo não liberados (no SEI ou nas `operacoes` da conexão) |
 | `ValidationException` | Erros acumulados de `atualizarContatos`, `replicarUsuario` e `replicarPermissao` (`->errors()`) |
 | `FaultException` | Demais erros de negócio do SEI (`->messages()`, `->faultCode`) |
@@ -332,6 +334,17 @@ Leituras (`consultar*` e `listar*`, inclusive o `listarPermissao` do SIP) são r
 - Cada tentativa gera seu próprio log e evento (`SeiRequestFailed`); o aviso de nova tentativa vai para o canal de `sei.log`.
 - Uma leitura pode levar até `(tentativas + 1) × timeout`, mais as esperas. Leve isso em conta no `timeout` de jobs e requisições HTTP.
 - Com `Sei::fake()` não há retry.
+
+Quando o SEI cai, cada chamada esperaria o timeout inteiro e as filas entupiriam. O **circuit breaker** de cada conexão evita isso: depois de `falhas` falhas de conexão em `janela_segundos`, as chamadas (leituras e escritas) falham na hora com `CircuitoAbertoException` durante `aberto_segundos`. Depois disso, uma chamada de teste passa: se der certo, o circuito fecha; se falhar, abre de novo.
+
+```php
+'circuito' => ['falhas' => 5, 'janela_segundos' => 60, 'aberto_segundos' => 30],   // false desliga
+```
+
+- `CircuitoAbertoException` estende `ConnectionException` com `possivelmenteEnviada = false`: a chamada nem saiu, então pode ser repetida com segurança (a idempotência a registra como falha, não como incerta).
+- Erros de negócio do SEI não contam: se o SEI responde, o circuito fica fechado.
+- No Laravel o estado fica no cache (`sei.cache.store`), compartilhado entre workers. `Sei::connection('x')->circuito()?->aberto()` consulta e `->fechar()` fecha manualmente.
+- Sem Laravel, o circuito vem desligado. Com `'circuito' => true` ele usa memória do processo, o que só faz sentido em workers longos; no PHP-FPM passe um `CircuitState` compartilhado a `SeiClient::transportFromConfig()`.
 
 ## 5. Testes na sua aplicação
 
