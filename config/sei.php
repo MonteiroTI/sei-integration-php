@@ -207,6 +207,13 @@ return [
         // Segundos entre consultas de processos abertos e concluídos
         'intervalo' => (int) env('SEI_SINCRONIZACAO_INTERVALO', 900),
         'intervalo_concluidos' => (int) env('SEI_SINCRONIZACAO_INTERVALO_CONCLUIDOS', 86400),
+        // Andamentos intermediários: o SEI só lista andamentos filtrando por tarefa. Informe os IDs
+        // das tarefas que interessam ao sistema (ex.: [65, 1000]) para receber um NovoAndamentoSei
+        // (intermediario = true) para cada um entre duas sincronizações. Vazio: só o último.
+        'andamentos' => [
+            'tarefas' => [],
+            'atributos' => false,
+        ],
         // Processos por execução de sei:sincronizar
         'limite' => 100,
         // Fila dos jobs de sincronização (null: a padrão)

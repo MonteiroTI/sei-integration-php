@@ -502,7 +502,7 @@ O SEI não notifica o sistema cliente. `sei:sincronizar` consulta os processos v
 
 | Evento | Quando |
 |---|---|
-| `NovoAndamentoSei` | O último andamento mudou (andamentos intermediários entre duas consultas não aparecem) |
+| `NovoAndamentoSei` | O processo recebeu andamentos: um evento para o último e, se configurado, um para cada andamento intermediário das tarefas escolhidas (`intermediario = true`) |
 | `ProcessoSeiTramitado` | Mudaram as unidades onde o processo está aberto (`entrou()`, `saiu()`) |
 | `ProcessoSeiConcluido` / `ProcessoSeiReaberto` | O processo foi concluído em todas as unidades / reaberto |
 | `DocumentoSeiAssinado` | O documento recebeu novas assinaturas |
@@ -517,6 +517,15 @@ Schedule::command('sei:sincronizar')->everyFifteenMinutes()->withoutOverlapping(
 - Processos abertos são consultados a cada 15 min e concluídos a cada 24 h (`sei.sincronizacao.intervalo*`).
 - Use uma conexão só de leitura nas consultas: `SEI_SINCRONIZACAO_CONEXAO=leitura`.
 - A primeira consulta de cada processo só registra o estado, sem eventos.
+- Por padrão só o **último** andamento gera evento: os intermediários entre duas consultas não aparecem. O `listarAndamentos` do SEI só lista filtrando por tarefa, então, para recebê-los, informe as tarefas que interessam ao sistema:
+
+  ```php
+  'sincronizacao' => [
+      'andamentos' => ['tarefas' => [65, 1000], 'atributos' => false],
+  ],
+  ```
+
+  Quando o último andamento muda, a sincronização busca essas tarefas e dispara um `NovoAndamentoSei` com `intermediario = true` para cada andamento entre o anterior e o atual, em ordem e antes do evento do último. Isso custa uma chamada a mais, só quando há mudança, e exige `listarAndamentos` liberada na conexão; se ela não estiver liberada ou o SEI recusar, vale só o último.
 - `php artisan sei:sincronizar --processo=12.1.000000077-4 --agora` sincroniza um processo na hora.
 
 ### Processos sigilosos

@@ -195,7 +195,7 @@ final class AtualizarStatusRequerimento
 
 | Evento | Propriedades |
 |---|---|
-| `NovoAndamentoSei` | `processo`, `andamento` (último andamento; intermediários entre duas consultas não aparecem) |
+| `NovoAndamentoSei` | `processo`, `andamento`, `intermediario`. Sempre há um evento para o último andamento; os intermediários só aparecem para as tarefas listadas em `sei.sincronizacao.andamentos.tarefas` (o `listarAndamentos` do SEI exige filtro por tarefa) |
 | `ProcessoSeiTramitado` | `processo`, `antes`, `depois` (IDs de unidades), `entrou()`, `saiu()` |
 | `ProcessoSeiConcluido` | `processo`, `andamentoConclusao` |
 | `ProcessoSeiReaberto` | `processo` |

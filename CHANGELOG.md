@@ -18,6 +18,8 @@ incompatíveis podem ocorrer entre versões menores e serão listadas aqui.
 - Circuit breaker por conexão (`circuito`; `CircuitBreakerTransport`, `CircuitoAbertoException`):
   depois de falhas de conexão seguidas, as chamadas falham na hora por um tempo. No Laravel fica
   ligado por padrão, com estado no cache; `SeiClient::circuito()` e `SeiManager::circuitos()`.
+- Andamentos intermediários na sincronização: com `sei.sincronizacao.andamentos.tarefas`, cada
+  andamento dessas tarefas entre duas consultas gera um `NovoAndamentoSei` (`intermediario = true`).
 
 ### Alterado
 

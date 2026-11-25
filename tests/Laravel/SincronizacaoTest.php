@@ -6,6 +6,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 use MonteiroTi\Sei\Core\Exceptions\AccessDeniedException;
+use MonteiroTi\Sei\Core\Exceptions\FaultException;
 use MonteiroTi\Sei\Laravel\Events\Sincronizacao\DocumentoSeiAssinado;
 use MonteiroTi\Sei\Laravel\Events\Sincronizacao\DocumentoSeiPublicado;
 use MonteiroTi\Sei\Laravel\Events\Sincronizacao\NovoAndamentoSei;
@@ -17,6 +18,7 @@ use MonteiroTi\Sei\Laravel\Events\Sincronizacao\SincronizacaoSeiFalhou;
 use MonteiroTi\Sei\Laravel\Facades\Sei;
 use MonteiroTi\Sei\Laravel\Jobs\SincronizarProcessoSeiJob;
 use MonteiroTi\Sei\Laravel\Models\SeiProcesso;
+use MonteiroTi\Sei\Laravel\SeiManager;
 use MonteiroTi\Sei\Laravel\SeiServiceProvider;
 
 const EVENTOS_SINCRONIZACAO = [
@@ -186,4 +188,70 @@ it('agenda a sincronização quando configurado', function () {
 
     expect($eventos)->toHaveCount(1)
         ->and($eventos->first()->expression)->toBe('*/15 * * * *');
+});
+
+function andamentoSoap(string $id, string $tarefa = '65'): object
+{
+    return (object) ['IdAndamento' => $id, 'IdTarefa' => $tarefa, 'DataHora' => '01/12/2026 10:00:00'];
+}
+
+it('dispara os andamentos intermediários das tarefas configuradas, em ordem e antes do último', function () {
+    config(['sei.sincronizacao.andamentos' => ['tarefas' => [65, 1000], 'atributos' => true]]);
+    $eventos = [];
+    Event::listen(NovoAndamentoSei::class, function (NovoAndamentoSei $e) use (&$eventos): void {
+        $eventos[] = [$e->andamento->idAndamento, $e->intermediario];
+    });
+    $fake = Sei::fake()
+        ->respond('consultarProcedimento', consultaProcesso(['1'], '98'), consultaProcesso(['1'], '1000'))
+        ->respond('listarAndamentos', [
+            andamentoSoap('1000'),  // o último: não repete
+            andamentoSoap('999', '1000'),
+            andamentoSoap('98'),    // já conhecido
+            andamentoSoap('120'),
+            andamentoSoap('97'),    // anterior
+        ]);
+    $processo = processoVinculado();
+    $sync = Sei::sincronizador();
+
+    $sync->processo($processo);
+    $fake->assertNotCalled('listarAndamentos');
+    $sync->processo($processo);
+
+    expect($eventos)->toBe([['120', true], ['999', true], ['1000', false]]);
+    $fake->assertCalled('listarAndamentos', fn ($a) => $a['ProtocoloProcedimento'] === '12.1.000000077-4'
+        && $a['Tarefas'] === ['65', '1000'] && $a['SinRetornarAtributos'] === 'S');
+});
+
+it('sem tarefas configuradas não lista andamentos', function () {
+    Event::fake(EVENTOS_SINCRONIZACAO);
+    $fake = Sei::fake()->respond('consultarProcedimento', consultaProcesso(['1'], '10'), consultaProcesso(['1'], '11'));
+    $processo = processoVinculado();
+
+    Sei::sincronizador()->processo($processo);
+    Sei::sincronizador()->processo($processo);
+
+    $fake->assertNotCalled('listarAndamentos');
+    Event::assertDispatchedTimes(NovoAndamentoSei::class, 1);
+});
+
+it('sem a operação liberada ou com erro do SEI, vale só o último andamento', function () {
+    config(['sei.sincronizacao.andamentos.tarefas' => [65]]);
+    Event::fake(EVENTOS_SINCRONIZACAO);
+    $fake = Sei::fake()
+        ->respond('consultarProcedimento', consultaProcesso(['1'], '10'), consultaProcesso(['1'], '11'), consultaProcesso(['1'], '12'))
+        ->respond('listarAndamentos', new FaultException('Processo não encontrado.', 'listarAndamentos'));
+    $processo = processoVinculado();
+    $sync = Sei::sincronizador();
+
+    $sync->processo($processo);
+    $sync->processo($processo);
+    expect($processo->refresh()->sincronizar)->toBeTrue();
+
+    config(['sei.connections.default.operacoes' => ['consultar*']]);
+    app(SeiManager::class)->purge();
+    Sei::sincronizador()->processo($processo);
+
+    $fake->assertCalledTimes('listarAndamentos', 1);
+    Event::assertDispatchedTimes(NovoAndamentoSei::class, 2);
+    Event::assertNotDispatched(NovoAndamentoSei::class, fn ($e) => $e->intermediario);
 });

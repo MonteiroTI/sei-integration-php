@@ -8,13 +8,17 @@ use MonteiroTi\Sei\Dto\Andamento;
 use MonteiroTi\Sei\Laravel\Models\SeiProcesso;
 
 /**
- * O último andamento do processo mudou desde a sincronização anterior.
- * Andamentos intermediários entre duas sincronizações não são reportados.
+ * O processo recebeu um andamento desde a sincronização anterior.
+ *
+ * Sempre há um evento para o último andamento. Se sei.sincronizacao.andamentos.tarefas
+ * estiver configurado, há também um evento (intermediario = true) para cada andamento
+ * dessas tarefas entre as duas sincronizações, em ordem e antes do último.
  */
 final class NovoAndamentoSei
 {
     public function __construct(
         public readonly SeiProcesso $processo,
         public readonly Andamento $andamento,
+        public readonly bool $intermediario = false,
     ) {}
 }

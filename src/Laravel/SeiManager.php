@@ -75,7 +75,7 @@ class SeiManager
     {
         $config = $this->config('sincronizacao', []);
 
-        return new Sincronizador($this, $this->app->make('events'), $this->redactor(), is_array($config) ? $config : []);
+        return new Sincronizador($this, $this->app->make('events'), $this->redactor(), is_array($config) ? $config : [], $this->app->make('log'));
     }
 
     public function idempotencia(): Idempotencia
