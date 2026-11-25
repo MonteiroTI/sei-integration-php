@@ -13,19 +13,26 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use MonteiroTi\Sei\Dto\Documento;
 use MonteiroTi\Sei\Dto\Procedimento;
+use MonteiroTi\Sei\Laravel\Jobs\Concerns\TrataFalhasSei;
 use MonteiroTi\Sei\Laravel\SeiManager;
 use MonteiroTi\Sei\Options\GerarProcedimentoOptions;
 
 /**
- * Gera o processo em fila. Sem retry automático: em caso de dúvida a operação vira "incerta"
- * e precisa de conferência (sei:operacoes). Para arquivos grandes, prefira Documento::externo(idArquivo: ...)
- * em vez de bytes no payload da fila.
+ * Gera o processo em fila, no máximo uma vez por chave.
+ *
+ * Falhas seguras (a requisição não chegou ao SEI, circuito aberto, lock ocupado) voltam à fila
+ * com backoff. Em caso de dúvida a operação vira "incerta", o job falha e precisa de
+ * conferência (sei:operacoes). Erros de negócio falham na hora. Para arquivos grandes,
+ * prefira Documento::externo(idArquivo: ...) em vez de bytes no payload da fila.
  */
 class GerarProcessoSeiJob implements ShouldBeUnique, ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, TrataFalhasSei;
 
-    public int $tries = 1;
+    public int $tries = 5;
+
+    /** Mantém o job único enquanto as novas tentativas estiverem na fila. */
+    public int $uniqueFor = 3600;
 
     public int $timeout;
 
@@ -40,16 +47,16 @@ class GerarProcessoSeiJob implements ShouldBeUnique, ShouldQueue
         public ?string $conexao = null,
         public ?string $chave = null,
     ) {
-        $this->timeout = (int) config('sei.connections.'.($conexao ?? config('sei.default', 'default')).'.timeout', 60) + 60;
+        $this->timeout = $this->timeoutDaConexao();
     }
 
     public function uniqueId(): string
     {
-        return $this->chave ?? $this->vinculavel->getMorphClass().':'.$this->vinculavel->getKey().':gerarProcedimento:'.($this->conexao ?? 'default');
+        return $this->chave ?? $this->vinculavel->getMorphClass().':'.$this->vinculavel->getKey().':gerarProcedimento:'.$this->conexaoResolvida();
     }
 
     public function handle(SeiManager $sei): void
     {
-        $sei->integracao($this->conexao)->gerarProcesso($this->vinculavel, $this->procedimento, $this->documentos, $this->options, $this->chave);
+        $this->executarNoSei(fn () => $sei->integracao($this->conexao)->gerarProcesso($this->vinculavel, $this->procedimento, $this->documentos, $this->options, $this->chave));
     }
 }

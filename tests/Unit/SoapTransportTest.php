@@ -140,3 +140,24 @@ it('baixa a WSDL com as opções da conexão', function () {
         ->and(fn () => (new SoapTransport(new TransportOptions('/nao/existe.wsdl')))->downloadWsdl())
         ->toThrow(ConnectionException::class);
 });
+
+it('aplica o timeout da conexão só durante a chamada', function () {
+    $antes = ini_get('default_socket_timeout');
+    $soap = null;
+    $transport = new SoapTransport(
+        new TransportOptions(seiFixture('sei-mini.wsdl'), timeout: 7, wsdlCache: WSDL_CACHE_NONE),
+        function (array $options) use (&$soap) {
+            $soap = new RecordingSoapClient(seiFixture('sei-mini.wsdl'), $options);
+            $soap->responseXml = RecordingSoapClient::envelope(
+                '<ns1:enviarProcessoResponse><parametros xsi:type="xsd:boolean">true</parametros></ns1:enviarProcessoResponse>'
+            );
+
+            return $soap;
+        },
+    );
+
+    $transport->call('enviarProcesso', ['SiglaSistema' => 'S']);
+
+    expect($soap->socketTimeout)->toBe('7')
+        ->and(ini_get('default_socket_timeout'))->toBe($antes);
+});

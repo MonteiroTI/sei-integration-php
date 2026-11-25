@@ -7,12 +7,18 @@ namespace MonteiroTi\Sei\Laravel;
 use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Contracts\Container\Container;
 use Illuminate\Support\Arr;
+use MonteiroTi\Sei\Core\Config\CircuitOptions;
+use MonteiroTi\Sei\Core\Config\RetryOptions;
 use MonteiroTi\Sei\Core\Config\SeiConfig;
 use MonteiroTi\Sei\Core\Config\SipConfig;
 use MonteiroTi\Sei\Core\Config\TransportOptions;
+use MonteiroTi\Sei\Core\Exceptions\ConnectionException;
 use MonteiroTi\Sei\Core\Support\CatalogCache;
 use MonteiroTi\Sei\Core\Support\Redactor;
+use MonteiroTi\Sei\Core\Transport\CircuitBreakerTransport;
+use MonteiroTi\Sei\Core\Transport\CircuitState;
 use MonteiroTi\Sei\Core\Transport\FakeTransport;
+use MonteiroTi\Sei\Core\Transport\RetryingTransport;
 use MonteiroTi\Sei\Core\Transport\SoapTransport;
 use MonteiroTi\Sei\Core\Transport\Transport;
 use MonteiroTi\Sei\Laravel\Integracao\Idempotencia;
@@ -21,6 +27,7 @@ use MonteiroTi\Sei\Laravel\Sincronizacao\Sincronizador;
 use MonteiroTi\Sei\Laravel\Testing\SeiFake;
 use MonteiroTi\Sei\SeiClient;
 use MonteiroTi\Sei\Sip\SipClient;
+use Psr\Log\LoggerInterface;
 
 /**
  * Resolve clientes SEI e SIP por conexão nomeada (config/sei.php).
@@ -68,7 +75,7 @@ class SeiManager
     {
         $config = $this->config('sincronizacao', []);
 
-        return new Sincronizador($this, $this->app->make('events'), $this->redactor(), is_array($config) ? $config : []);
+        return new Sincronizador($this, $this->app->make('events'), $this->redactor(), is_array($config) ? $config : [], $this->app->make('log'));
     }
 
     public function idempotencia(): Idempotencia
@@ -173,23 +180,89 @@ class SeiManager
     }
 
     /**
+     * Camadas: Circuito(Retry(Observed(Soap))). Cada tentativa gera seu próprio log e evento;
+     * o circuito conta uma falha por chamada. Com Sei::fake() não há retry nem circuito,
+     * para os testes continuarem determinísticos.
+     *
      * @param  array<string, mixed>  $config
      */
     private function transport(string $connection, array $config): Transport
     {
-        $transport = $this->fake ?? new SoapTransport(TransportOptions::fromArray($config));
-
-        $events = $this->config('events', true) ? $this->app->make('events') : null;
-        $logger = null;
-        if ($this->config('log.enabled', false)) {
-            $logger = $this->app->make('log')->channel($this->config('log.channel'));
+        if ($this->fake !== null) {
+            return $this->observed($this->fake, $connection);
         }
+
+        $transport = $this->observed(new SoapTransport(TransportOptions::fromArray($config)), $connection);
+
+        $retry = RetryOptions::fromConfig($config['retry'] ?? null);
+        if ($retry !== null) {
+            $logger = $this->logger();
+            $transport = new RetryingTransport(
+                $transport,
+                $retry,
+                aoRepetir: $logger === null ? null : function (string $operation, int $tentativa, ConnectionException $e, int $espera) use ($logger, $connection): void {
+                    $logger->warning("SEI {$operation}: nova tentativa {$tentativa}", [
+                        'connection' => $connection,
+                        'espera_ms' => $espera,
+                        'message' => $this->redactor()->text($e->getMessage()),
+                    ]);
+                },
+            );
+        }
+
+        $circuito = CircuitOptions::fromConfig($config['circuito'] ?? null, padraoAtivo: true);
+        if ($circuito !== null) {
+            $transport = new CircuitBreakerTransport($transport, $circuito, $this->circuitState(), $connection);
+        }
+
+        return $transport;
+    }
+
+    private function circuitState(): CircuitState
+    {
+        return new CacheCircuitState($this->app->make('cache')->store($this->config('cache.store')));
+    }
+
+    /**
+     * Circuit breakers das conexões SEI informadas (padrão: todas as configuradas).
+     * Conexões com o circuito desligado ficam de fora.
+     *
+     * @param  list<string>|null  $conexoes
+     * @return array<string, CircuitBreakerTransport>
+     */
+    public function circuitos(?array $conexoes = null): array
+    {
+        $conexoes ??= array_keys((array) $this->config('connections', []));
+        $circuitos = [];
+        foreach ($conexoes as $nome) {
+            $circuito = $this->connection((string) $nome)->circuito();
+            if ($circuito !== null) {
+                $circuitos[(string) $nome] = $circuito;
+            }
+        }
+
+        return $circuitos;
+    }
+
+    private function observed(Transport $transport, string $connection): Transport
+    {
+        $events = $this->config('events', true) ? $this->app->make('events') : null;
+        $logger = $this->logger();
 
         if ($events === null && $logger === null) {
             return $transport;
         }
 
         return new ObservedTransport($transport, $connection, $events, $logger, $this->redactor());
+    }
+
+    private function logger(): ?LoggerInterface
+    {
+        if (! $this->config('log.enabled', false)) {
+            return null;
+        }
+
+        return $this->app->make('log')->channel($this->config('log.channel'));
     }
 
     public function redactor(): Redactor

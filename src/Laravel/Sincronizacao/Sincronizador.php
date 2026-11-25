@@ -9,6 +9,7 @@ use Illuminate\Support\Collection;
 use MonteiroTi\Sei\Core\Exceptions\ConnectionException;
 use MonteiroTi\Sei\Core\Exceptions\FaultException;
 use MonteiroTi\Sei\Core\Support\Redactor;
+use MonteiroTi\Sei\Dto\Andamento;
 use MonteiroTi\Sei\Dto\Assinatura;
 use MonteiroTi\Sei\Enum\EstadoPublicacao;
 use MonteiroTi\Sei\Laravel\Events\Sincronizacao\DocumentoSeiAssinado;
@@ -26,6 +27,7 @@ use MonteiroTi\Sei\Laravel\SeiManager;
 use MonteiroTi\Sei\Options\ConsultaDocumentoOptions;
 use MonteiroTi\Sei\Options\ConsultaProcedimentoOptions;
 use MonteiroTi\Sei\SeiClient;
+use Psr\Log\LoggerInterface;
 
 /**
  * Compara o estado salvo dos processos/documentos com o SEI e dispara eventos de mudança.
@@ -43,6 +45,7 @@ final class Sincronizador
         private readonly Dispatcher $events,
         private readonly Redactor $redactor,
         private readonly array $config = [],
+        private readonly ?LoggerInterface $logger = null,
     ) {}
 
     /**
@@ -83,8 +86,10 @@ final class Sincronizador
             return;
         }
 
+        $cliente = $this->cliente($processo);
+
         try {
-            $consulta = $this->cliente($processo)->processos()->consultar(
+            $consulta = $cliente->processos()->consultar(
                 $processo->protocolo_formatado,
                 new ConsultaProcedimentoOptions(andamentoConclusao: true, ultimoAndamento: true, unidadesProcedimentoAberto: true),
             );
@@ -110,6 +115,9 @@ final class Sincronizador
         $eventos = [];
         if (! $primeira) {
             if ($ultimo?->idAndamento !== null && $ultimo->idAndamento !== $processo->ultimo_andamento_id) {
+                foreach ($this->andamentosIntermediarios($cliente, $processo, $ultimo->idAndamento) as $andamento) {
+                    $eventos[] = new NovoAndamentoSei($processo, $andamento, intermediario: true);
+                }
                 $eventos[] = new NovoAndamentoSei($processo, $ultimo);
             }
             $a = $antes;
@@ -214,6 +222,59 @@ final class Sincronizador
         foreach ($eventos as $evento) {
             $this->events->dispatch($evento);
         }
+    }
+
+    /**
+     * Andamentos das tarefas configuradas (sei.sincronizacao.andamentos.tarefas) entre o último
+     * andamento conhecido e o atual, em ordem. O listarAndamentos do SEI exige um filtro, por isso
+     * só as tarefas configuradas são buscadas. Sem tarefas, sem a operação liberada ou se o SEI
+     * recusar a consulta, devolve [] (vale só o último andamento).
+     *
+     * @return list<Andamento>
+     */
+    private function andamentosIntermediarios(SeiClient $cliente, SeiProcesso $processo, string $idUltimo): array
+    {
+        $config = $this->config['andamentos'] ?? [];
+        $tarefas = is_array($config) && is_array($config['tarefas'] ?? null) ? array_values($config['tarefas']) : [];
+        $anterior = $processo->ultimo_andamento_id;
+
+        if ($tarefas === [] || $anterior === null || ! $cliente->config()->permite('listarAndamentos')) {
+            return [];
+        }
+
+        try {
+            $andamentos = $cliente->andamentos()->listar(
+                $processo->protocolo_formatado,
+                tarefas: array_map(fn ($t) => is_int($t) ? $t : (string) $t, $tarefas),
+                retornarAtributos: is_array($config) && (bool) ($config['atributos'] ?? false),
+            );
+        } catch (FaultException $e) {
+            $this->logger?->warning('SEI: não foi possível listar os andamentos intermediários; vale só o último.', [
+                'processo' => $processo->protocolo_formatado,
+                'message' => $this->redactor->text($e->getMessage()),
+            ]);
+
+            return [];
+        }
+
+        $intermediarios = array_values(array_filter(
+            $andamentos,
+            fn (Andamento $a) => $a->idAndamento !== null
+                && self::compararIds($a->idAndamento, $anterior) > 0
+                && self::compararIds($a->idAndamento, $idUltimo) < 0,
+        ));
+        usort($intermediarios, fn (Andamento $a, Andamento $b) => self::compararIds((string) $a->idAndamento, (string) $b->idAndamento));
+
+        return $intermediarios;
+    }
+
+    /** Compara IDs numéricos do SEI como string (passam de 32 bits). */
+    private static function compararIds(string $a, string $b): int
+    {
+        $a = ltrim($a, '0');
+        $b = ltrim($b, '0');
+
+        return strlen($a) <=> strlen($b) ?: strcmp($a, $b) <=> 0;
     }
 
     private function cliente(SeiProcesso $processo): SeiClient

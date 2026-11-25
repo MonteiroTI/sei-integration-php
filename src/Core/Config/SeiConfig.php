@@ -75,20 +75,28 @@ final readonly class SeiConfig
     /** Indica se a operação está liberada nesta conexão (operacoes e somente_leitura). */
     public function permite(string $operacao): bool
     {
-        if ($this->somenteLeitura && ! self::matches($operacao, self::LEITURA)) {
+        if ($this->somenteLeitura && ! self::leitura($operacao)) {
             return false;
         }
 
-        return $this->operacoes === null || self::matches($operacao, $this->operacoes);
+        return $this->operacoes === null || self::casa($operacao, $this->operacoes);
     }
 
     /** Padrões das operações de leitura. */
     public const LEITURA = ['consultar*', 'listar*'];
 
+    /** Indica se a operação é de leitura (consultar*, listar*). */
+    public static function leitura(string $operacao): bool
+    {
+        return self::casa($operacao, self::LEITURA);
+    }
+
     /**
+     * Indica se a operação casa com algum dos padrões (aceita curinga *, sem distinção de caixa).
+     *
      * @param  list<string>  $patterns
      */
-    private static function matches(string $operacao, array $patterns): bool
+    public static function casa(string $operacao, array $patterns): bool
     {
         foreach ($patterns as $pattern) {
             $regex = '/^'.str_replace('\\*', '.*', preg_quote($pattern, '/')).'$/i';

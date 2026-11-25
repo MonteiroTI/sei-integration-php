@@ -7,6 +7,46 @@ incompatíveis podem ocorrer entre versões menores e serão listadas aqui.
 
 ## [Não lançado]
 
+### Adicionado
+
+- Novas tentativas automáticas de leituras (`consultar*`, `listar*`) após falha de conexão, com
+  backoff exponencial e jitter (`retry` por conexão SEI e SIP; `RetryingTransport`, `RetryOptions`).
+  Escritas nunca são repetidas pelo transporte.
+- `SeiConfig::leitura()` e `SeiConfig::casa()` (curingas de operação) públicos.
+- `config/sei.php` expõe `proxy_host`/`proxy_port` nas conexões SEI e as opções de transporte que
+  faltavam na conexão SIP (`location`, `connection_timeout`, `wsdl_cache`, proxy, `soap_options`).
+- Circuit breaker por conexão (`circuito`; `CircuitBreakerTransport`, `CircuitoAbertoException`):
+  depois de falhas de conexão seguidas, as chamadas falham na hora por um tempo. No Laravel fica
+  ligado por padrão, com estado no cache; `SeiClient::circuito()` e `SeiManager::circuitos()`.
+- Andamentos intermediários na sincronização: com `sei.sincronizacao.andamentos.tarefas`, cada
+  andamento dessas tarefas entre duas consultas gera um `NovoAndamentoSei` (`intermediario = true`).
+- Testes: `MonteiroTi\Sei\Testing\Respostas` (respostas prontas no formato do SEI) e
+  `SeiSimulado`, um SEI em memória ligado com `Sei::fake()->simular()` ou
+  `FakeTransport::simular()`; `SeiFake::sei()` e `SeiFake::assertCalledInOrder()`.
+- Gravação e reprodução de respostas: `GravadorTransport` grava chamadas reais com dados pessoais
+  mascarados; `FakeTransport::reproduzir()` / `Sei::fake()->reproduzir()` as devolvem na mesma
+  ordem. Novo script `composer test:gravar`.
+- O mascaramento de dados pessoais também trata `Assinaturas`, `Usuario` e `UsuarioAtribuicao`
+  como estruturas de pessoa.
+- Health check: com `sei.saude.up` (`SEI_SAUDE_UP`), a rota `/up` do Laravel falha quando o
+  circuito de uma conexão monitorada (`sei.saude.conexoes`) está aberto. `sei:ping` mostra o
+  estado do circuito.
+
+### Alterado
+
+- `GerarProcessoSeiJob` e `IncluirDocumentoSeiJob` voltam à fila com backoff (até 5 tentativas)
+  quando a falha é segura de repetir (conexão não enviada, circuito aberto, lock ocupado).
+  Operações incertas e erros de negócio continuam falhando de vez; com `dispatchSync` a exceção
+  é relançada.
+
+- O `SoapTransport` só altera o `default_socket_timeout` quando ele é diferente do timeout da
+  conexão. O README documenta o cuidado com o Octane/Swoole.
+
+### Corrigido
+
+- `uniqueId()` dos jobs de escrita usa a conexão padrão configurada (`sei.default`) em vez de
+  `default` fixo quando a conexão não é informada.
+
 ## [0.1.0] - 2026-11-25
 
 Primeira versão. Ainda não foi validada contra um SEI de homologação: a ordem dos

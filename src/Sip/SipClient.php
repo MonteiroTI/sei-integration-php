@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace MonteiroTi\Sei\Sip;
 
 use MonteiroTi\Sei\Core\Config\SipConfig;
-use MonteiroTi\Sei\Core\Config\TransportOptions;
 use MonteiroTi\Sei\Core\Exceptions\InvalidArgumentException;
 use MonteiroTi\Sei\Core\Support\SoapData;
 use MonteiroTi\Sei\Core\Support\Values;
-use MonteiroTi\Sei\Core\Transport\SoapTransport;
+use MonteiroTi\Sei\Core\Transport\CircuitBreakerTransport;
 use MonteiroTi\Sei\Core\Transport\Transport;
+use MonteiroTi\Sei\SeiClient;
 use MonteiroTi\Sei\Sip\Dto\FiltroPermissao;
 use MonteiroTi\Sei\Sip\Dto\Permissao;
 use MonteiroTi\Sei\Sip\Dto\Usuario;
@@ -26,13 +26,13 @@ final class SipClient
     ) {}
 
     /**
-     * Chaves: wsdl, chave_acesso, id_sistema e as opções de transporte (timeout, verify_ssl, ...).
+     * Chaves: wsdl, chave_acesso, id_sistema e as opções de transporte (timeout, verify_ssl, retry, ...).
      *
      * @param  array<string, mixed>  $config
      */
     public static function create(array $config): self
     {
-        return new self(new SoapTransport(TransportOptions::fromArray($config)), SipConfig::fromArray($config));
+        return new self(SeiClient::transportFromConfig($config, 'sip'), SipConfig::fromArray($config));
     }
 
     /**
@@ -122,5 +122,11 @@ final class SipClient
     public function transport(): Transport
     {
         return $this->transport;
+    }
+
+    /** Circuit breaker da conexão (null se desligado). */
+    public function circuito(): ?CircuitBreakerTransport
+    {
+        return $this->transport instanceof CircuitBreakerTransport ? $this->transport : null;
     }
 }

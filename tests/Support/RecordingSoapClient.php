@@ -16,9 +16,13 @@ final class RecordingSoapClient extends SoapClient
 
     public string $responseXml = '';
 
+    /** default_socket_timeout em vigor durante a requisição. */
+    public string|false $socketTimeout = false;
+
     public function __doRequest(string $request, string $location, string $action, int $version, bool $oneWay = false, ?string $uriParserClass = null): string
     {
         $this->requestXml = $request;
+        $this->socketTimeout = ini_get('default_socket_timeout');
 
         return $this->responseXml;
     }

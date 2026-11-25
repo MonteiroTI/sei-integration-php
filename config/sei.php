@@ -40,9 +40,29 @@ return [
             'connection_timeout' => (int) env('SEI_CONNECTION_TIMEOUT', 10),
             'verify_ssl' => (bool) env('SEI_VERIFY_SSL', true),
             'wsdl_cache' => WSDL_CACHE_BOTH,
+            // Proxy HTTP de saída (null: sem proxy)
+            'proxy_host' => env('SEI_PROXY_HOST'),
+            'proxy_port' => env('SEI_PROXY_PORT'),
             // Tamanho de cada parte em Documentos::enviarArquivo() (bytes)
             'upload_chunk_size' => 5 * 1024 * 1024,
             'soap_options' => [],
+
+            // Novas tentativas de leituras (consultar*, listar*) após falha de conexão, com backoff
+            // exponencial. Escritas nunca são repetidas aqui. false desliga.
+            'retry' => [
+                'tentativas' => (int) env('SEI_RETRY_TENTATIVAS', 2),
+                'espera_ms' => 200,
+                'multiplicador' => 2,
+                'espera_max_ms' => 2000,
+            ],
+
+            // Circuit breaker: depois de 'falhas' falhas de conexão em 'janela_segundos', as chamadas
+            // falham na hora (CircuitoAbertoException) por 'aberto_segundos'. Estado no cache. false desliga.
+            'circuito' => [
+                'falhas' => (int) env('SEI_CIRCUITO_FALHAS', 5),
+                'janela_segundos' => 60,
+                'aberto_segundos' => (int) env('SEI_CIRCUITO_ABERTO_SEGUNDOS', 30),
+            ],
 
             // Permissões mínimas: bloqueia localmente operações fora da lista (aceita curinga *).
             // Null libera todas. Libere também apenas essas operações no cadastro do serviço no SEI.
@@ -91,8 +111,20 @@ return [
                 'wsdl' => env('SIP_WSDL'),
                 'chave_acesso' => env('SIP_CHAVE_ACESSO'),
                 'id_sistema' => env('SIP_ID_SISTEMA'),
+                // Endpoint alternativo ao declarado na WSDL (ex.: atrás de proxy reverso)
+                'location' => env('SIP_LOCATION'),
                 'timeout' => (int) env('SIP_TIMEOUT', 60),
+                'connection_timeout' => (int) env('SIP_CONNECTION_TIMEOUT', 10),
                 'verify_ssl' => (bool) env('SIP_VERIFY_SSL', true),
+                'wsdl_cache' => WSDL_CACHE_BOTH,
+                // Proxy HTTP de saída (null: sem proxy)
+                'proxy_host' => env('SIP_PROXY_HOST', env('SEI_PROXY_HOST')),
+                'proxy_port' => env('SIP_PROXY_PORT', env('SEI_PROXY_PORT')),
+                'soap_options' => [],
+                // Novas tentativas de listarPermissao após falha de conexão (false desliga)
+                'retry' => ['tentativas' => (int) env('SIP_RETRY_TENTATIVAS', 2)],
+                // Circuit breaker (false desliga)
+                'circuito' => ['falhas' => 5, 'janela_segundos' => 60, 'aberto_segundos' => 30],
             ],
         ],
     ],
@@ -131,6 +163,22 @@ return [
     ],
 
     'events' => (bool) env('SEI_EVENTS', true),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Health check (rota /up do Laravel)
+    |--------------------------------------------------------------------------
+    |
+    | Com 'up' = true, a rota /up responde 500 quando o circuit breaker de uma das
+    | conexões abaixo está aberto (o SEI parou de responder). Não faz chamada de rede.
+    |
+    */
+
+    'saude' => [
+        'up' => (bool) env('SEI_SAUDE_UP', false),
+        // Conexões SEI monitoradas (null: a padrão)
+        'conexoes' => null,
+    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -175,6 +223,13 @@ return [
         // Segundos entre consultas de processos abertos e concluídos
         'intervalo' => (int) env('SEI_SINCRONIZACAO_INTERVALO', 900),
         'intervalo_concluidos' => (int) env('SEI_SINCRONIZACAO_INTERVALO_CONCLUIDOS', 86400),
+        // Andamentos intermediários: o SEI só lista andamentos filtrando por tarefa. Informe os IDs
+        // das tarefas que interessam ao sistema (ex.: [65, 1000]) para receber um NovoAndamentoSei
+        // (intermediario = true) para cada um entre duas sincronizações. Vazio: só o último.
+        'andamentos' => [
+            'tarefas' => [],
+            'atributos' => false,
+        ],
         // Processos por execução de sei:sincronizar
         'limite' => 100,
         // Fila dos jobs de sincronização (null: a padrão)

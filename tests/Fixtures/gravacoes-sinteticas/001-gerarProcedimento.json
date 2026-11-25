@@ -1,0 +1,18 @@
+{
+    "operacao": "gerarProcedimento",
+    "argumentos": {
+        "SiglaSistema": "SISTEMA",
+        "IdentificacaoServico": "***",
+        "IdUnidade": "110000001",
+        "Procedimento": {
+            "IdTipoProcedimento": "100000368",
+            "Especificacao": "***"
+        }
+    },
+    "resposta": {
+        "IdProcedimento": "1210000000774",
+        "ProcedimentoFormatado": "12.1.000000077-4",
+        "LinkAcesso": "https://sei.exemplo.gov.br/sei/controlador.php?acao=procedimento_trabalhar&id_procedimento=1210000000774",
+        "RetornoInclusaoDocumentos": []
+    }
+}

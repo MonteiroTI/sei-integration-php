@@ -15,6 +15,12 @@ use SoapFault;
  *
  * A WSDL do SEI é RPC/encoded: os argumentos são posicionais, por isso
  * os valores nomeados recebidos são enviados na ordem em que chegam.
+ *
+ * O \SoapClient lê a resposta com o default_socket_timeout do PHP (o timeout do
+ * stream_context não vale para ele), por isso o timeout da conexão é aplicado com
+ * ini_set durante a chamada. Esse valor é global do processo: no Octane com Swoole e
+ * corrotinas, chamadas simultâneas de conexões com timeouts diferentes podem usar o
+ * timeout uma da outra. Nesse cenário, use o mesmo timeout em todas as conexões.
  */
 final class SoapTransport implements Transport
 {
@@ -36,15 +42,19 @@ final class SoapTransport implements Transport
     public function call(string $operation, array $arguments): mixed
     {
         $client = $this->client();
+        $timeout = (string) $this->options->timeout;
         $previousTimeout = ini_get('default_socket_timeout');
-        ini_set('default_socket_timeout', (string) $this->options->timeout);
+        $changed = $previousTimeout !== $timeout;
+        if ($changed) {
+            ini_set('default_socket_timeout', $timeout);
+        }
 
         try {
             return $client->__soapCall($operation, array_values($arguments));
         } catch (SoapFault $fault) {
             throw FaultMapper::map($fault, $operation);
         } finally {
-            if ($previousTimeout !== false) {
+            if ($changed && $previousTimeout !== false) {
                 ini_set('default_socket_timeout', $previousTimeout);
             }
         }

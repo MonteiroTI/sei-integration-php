@@ -36,7 +36,7 @@ final class Redactor
     public const CONTACT_KEYS = ['Nome', 'NomeSocial', 'Sigla', 'NomeContatoAssociado'];
 
     /** Estruturas cujos itens representam pessoas. */
-    public const CONTACT_CONTEXTS = ['Interessados', 'Remetente', 'Destinatarios', 'Contatos', 'Usuarios'];
+    public const CONTACT_CONTEXTS = ['Interessados', 'Remetente', 'Destinatarios', 'Contatos', 'Usuarios', 'Usuario', 'UsuarioAtribuicao', 'Assinaturas'];
 
     /** Operações cuja raiz descreve uma pessoa. */
     public const CONTACT_OPERATIONS = ['registrarOuvidoria'];

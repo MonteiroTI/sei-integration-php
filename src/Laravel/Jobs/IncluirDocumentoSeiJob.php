@@ -12,17 +12,22 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use MonteiroTi\Sei\Dto\Documento;
+use MonteiroTi\Sei\Laravel\Jobs\Concerns\TrataFalhasSei;
 use MonteiroTi\Sei\Laravel\Models\SeiProcesso;
 use MonteiroTi\Sei\Laravel\SeiManager;
 
 /**
- * Inclui um documento em fila, no máximo uma vez por chave. Sem retry automático.
+ * Inclui um documento em fila, no máximo uma vez por chave. Falhas seguras voltam à fila
+ * com backoff; operações incertas e erros de negócio falham (veja TrataFalhasSei).
  */
 class IncluirDocumentoSeiJob implements ShouldBeUnique, ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, TrataFalhasSei;
 
-    public int $tries = 1;
+    public int $tries = 5;
+
+    /** Mantém o job único enquanto as novas tentativas estiverem na fila. */
+    public int $uniqueFor = 3600;
 
     public int $timeout;
 
@@ -32,16 +37,16 @@ class IncluirDocumentoSeiJob implements ShouldBeUnique, ShouldQueue
         public string $chave,
         public ?string $conexao = null,
     ) {
-        $this->timeout = (int) config('sei.connections.'.($conexao ?? config('sei.default', 'default')).'.timeout', 60) + 60;
+        $this->timeout = $this->timeoutDaConexao();
     }
 
     public function uniqueId(): string
     {
-        return ($this->conexao ?? 'default').':'.$this->chave;
+        return $this->conexaoResolvida().':'.$this->chave;
     }
 
     public function handle(SeiManager $sei): void
     {
-        $sei->integracao($this->conexao)->incluirDocumento($this->alvo, $this->documento, $this->chave);
+        $this->executarNoSei(fn () => $sei->integracao($this->conexao)->incluirDocumento($this->alvo, $this->documento, $this->chave));
     }
 }

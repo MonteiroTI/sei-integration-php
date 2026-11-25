@@ -30,6 +30,8 @@ O pacote é distribuído pelo GitHub. No `composer.json` da aplicação:
 composer require monteiroti/sei-integration:^0.1
 ```
 
+Com vários sistemas usando o pacote, um repositório Composer privado evita repetir o bloco `repositories` e as credenciais do GitHub em cada projeto: [Private Packagist](https://packagist.com) (pago) ou [Satis](https://composer.github.io/satis/) (gratuito, hospedado pelo órgão). Nos dois casos, basta apontar o repositório para este GitHub e a aplicação passa a usar só `composer require`.
+
 As versões seguem [SemVer](https://semver.org/lang/pt-BR/) e estão no [CHANGELOG](CHANGELOG.md). Enquanto a versão for `0.x`, mudanças incompatíveis podem ocorrer entre versões menores.
 
 No Laravel, o provider é registrado sozinho. Para publicar a configuração:
@@ -76,6 +78,8 @@ SIP_CHAVE_ACESSO=chave-de-acesso-do-sip
 SIP_ID_SISTEMA=100000100
 ```
 
+A conexão SIP aceita as mesmas opções de transporte da SEI (`location`, `timeout`, `connection_timeout`, `verify_ssl`, `wsdl_cache`, `proxy_host`/`proxy_port`, `soap_options`, `retry`, `circuito`).
+
 Para usar várias conexões (outro órgão, homologação, outro serviço com outras operações), acrescente entradas em `config/sei.php`:
 
 ```php
@@ -100,8 +104,11 @@ Para usar várias conexões (outro órgão, homologação, outro serviço com ou
 | `conteudo_charset` | `UTF-8` | Charset do HTML de documentos gerados antes do Base64 (`UTF-8` ou `ISO-8859-1`) |
 | `timeout` / `connection_timeout` | `60` / `10` | Tempos máximos, em segundos |
 | `verify_ssl` | `true` | Valida o certificado do servidor |
+| `proxy_host` / `proxy_port` | `null` | Proxy HTTP de saída (`SEI_PROXY_HOST`, `SEI_PROXY_PORT`) |
 | `upload_chunk_size` | 5 MB | Tamanho de cada parte em `enviarArquivo()` |
 | `soap_options` | `[]` | Opções extras para o `\SoapClient` |
+| `retry` | 2 tentativas | Novas tentativas de leituras após falha de conexão (`false` desliga). Veja [Falhas de conexão](#falhas-de-conexão) |
+| `circuito` | 5 falhas / 60 s → 30 s | Circuit breaker da conexão (`false` desliga). Veja [Falhas de conexão](#falhas-de-conexão) |
 
 ### IDs do SEI por nome (`parametros`)
 
@@ -306,12 +313,47 @@ Todas as exceções herdam de `MonteiroTi\Sei\Core\Exceptions\SeiException`, que
 | Exceção | Quando |
 |---|---|
 | `ConnectionException` | WSDL inacessível, timeout, falha de rede ou SSL |
+| `CircuitoAbertoException` | Subclasse de `ConnectionException`: falhas seguidas na conexão, chamada suspensa sem ser enviada |
 | `AccessDeniedException` | Sistema, serviço, chave, operação, unidade ou tipo não liberados (no SEI ou nas `operacoes` da conexão) |
 | `ValidationException` | Erros acumulados de `atualizarContatos`, `replicarUsuario` e `replicarPermissao` (`->errors()`) |
 | `FaultException` | Demais erros de negócio do SEI (`->messages()`, `->faultCode`) |
 | `InvalidArgumentException` | Dados inválidos detectados antes da chamada |
 | `OperacaoIncertaException` | Módulo de persistência: a operação pode ter sido executada no SEI; exige conferência (`sei:operacoes`) |
 | `OperacaoEmAndamentoException` | Módulo de persistência: outra execução com a mesma chave está em andamento |
+
+### Falhas de conexão
+
+Leituras (`consultar*` e `listar*`, inclusive o `listarPermissao` do SIP) são repetidas automaticamente quando a falha é de conexão (`ConnectionException`), com espera exponencial e *jitter*:
+
+```php
+'retry' => [
+    'tentativas' => 2,        // novas tentativas depois da primeira (0 ou false desliga)
+    'espera_ms' => 200,       // 200 ms, 400 ms, ... (sorteado entre a metade e o valor)
+    'multiplicador' => 2,
+    'espera_max_ms' => 2000,
+],
+```
+
+- Escritas **nunca** são repetidas pelo transporte: um timeout depois do envio poderia duplicar o efeito no SEI. Para elas, use o [módulo de idempotência](#7-módulo-de-persistência-vínculo-idempotência-e-sincronização).
+- Erros de negócio (`FaultException`, `AccessDeniedException`...) não são repetidos.
+- Cada tentativa gera seu próprio log e evento (`SeiRequestFailed`); o aviso de nova tentativa vai para o canal de `sei.log`.
+- Uma leitura pode levar até `(tentativas + 1) × timeout`, mais as esperas. Leve isso em conta no `timeout` de jobs e requisições HTTP.
+- Com `Sei::fake()` não há retry.
+
+Quando o SEI cai, cada chamada esperaria o timeout inteiro e as filas entupiriam. O **circuit breaker** de cada conexão evita isso: depois de `falhas` falhas de conexão em `janela_segundos`, as chamadas (leituras e escritas) falham na hora com `CircuitoAbertoException` durante `aberto_segundos`. Depois disso, uma chamada de teste passa: se der certo, o circuito fecha; se falhar, abre de novo.
+
+```php
+'circuito' => ['falhas' => 5, 'janela_segundos' => 60, 'aberto_segundos' => 30],   // false desliga
+```
+
+- `CircuitoAbertoException` estende `ConnectionException` com `possivelmenteEnviada = false`: a chamada nem saiu, então pode ser repetida com segurança (a idempotência a registra como falha, não como incerta).
+- Erros de negócio do SEI não contam: se o SEI responde, o circuito fica fechado.
+- No Laravel o estado fica no cache (`sei.cache.store`), compartilhado entre workers. `Sei::connection('x')->circuito()?->aberto()` consulta e `->fechar()` fecha manualmente.
+- Sem Laravel, o circuito vem desligado. Com `'circuito' => true` ele usa memória do processo, o que só faz sentido em workers longos; no PHP-FPM passe um `CircuitState` compartilhado a `SeiClient::transportFromConfig()`.
+
+### Octane e Swoole
+
+O `\SoapClient` lê a resposta usando o `default_socket_timeout` do PHP, então a biblioteca aplica o `timeout` da conexão com `ini_set` durante cada chamada e depois restaura o valor anterior. Esse valor vale para o processo todo. No Octane com Swoole e corrotinas, chamadas simultâneas de conexões com timeouts diferentes podem usar o timeout uma da outra. Nesse caso, configure o mesmo `timeout` em todas as conexões (ou deixe o `default_socket_timeout` do PHP igual a ele).
 
 ## 5. Testes na sua aplicação
 
@@ -330,6 +372,60 @@ $sei->assertCalled('gerarProcedimento', fn (array $args) => $args['Procedimento'
 ```
 
 As respostas são o que o `\SoapClient` devolveria: arrays ou objetos com os nomes do SEI. Também podem ser uma `Closure` ou uma exceção a lançar. O fake cobre as conexões SEI e SIP.
+
+### Respostas prontas
+
+`MonteiroTi\Sei\Testing\Respostas` monta as respostas no formato do SEI, sem precisar decorar os nomes dos campos:
+
+```php
+use MonteiroTi\Sei\Testing\Respostas;
+
+Sei::fake()
+    ->respond('gerarProcedimento', Respostas::processoGerado('12.1.000000077-4', documentos: [Respostas::documentoIncluido('0003934')]))
+    ->respond('consultarProcedimento', Respostas::processo('12.1.000000077-4',
+        unidadesAbertas: ['110000015'],
+        ultimoAndamento: Respostas::andamento('1005', 65, 'Pagamento confirmado'),
+    ))
+    ->respond('consultarDocumento', Respostas::documento('0003934', '12.1.000000077-4', assinaturas: [Respostas::assinatura('Maria Souza')]));
+```
+
+Também há `unidade()`, `unidades(['110000001' => 'PROTOCOLO'])` e `series(['3' => 'Ofício'])`.
+
+### SEI simulado
+
+Para fluxos com várias chamadas, `simular()` liga um SEI em memória (`MonteiroTi\Sei\Testing\SeiSimulado`) que gera protocolos e responde às consultas de forma coerente com o que foi criado:
+
+```php
+$fake = Sei::fake()->simular();
+
+$processo = Sei::integracao()->gerarProcesso($requerimento, $procedimento, [$documento]);  // 12.1.000000001-1
+
+// Mude o estado como se um usuário agisse no SEI e rode a sincronização
+$fake->sei()->tramitar($processo->protocolo_formatado, '110000015');
+$fake->sei()->assinar('0000001', 'Maria Souza');
+$fake->sei()->concluir($processo->protocolo_formatado);
+Sei::sincronizador()->processo($processo->refresh());
+
+$fake->assertCalledInOrder(['gerarProcedimento', 'consultarProcedimento']);
+```
+
+- Simula `gerarProcedimento`, `incluirDocumento`, `consultarProcedimento`, `consultarDocumento`, `enviarProcesso`, `concluirProcesso`, `reabrirProcesso`, `lancarAndamento`, `listarAndamentos`, `listarUnidades` e o envio de arquivos em partes. As demais operações pedem `respond()`.
+- Respostas programadas com `respond()` têm prioridade sobre o simulador (útil para forçar um erro).
+- Não reproduz regras de negócio do SEI (permissões, tipos, séries), e os IDs de tarefa dos andamentos automáticos são ilustrativos (`SeiSimulado::TAREFA_*`).
+- Fora do Laravel: `$transport = new FakeTransport; $transport->simular();`.
+
+### Respostas gravadas da homologação
+
+`MonteiroTi\Sei\Testing\GravadorTransport` grava cada chamada (operação, argumentos e resposta ou erro) em um JSON, e `Sei::fake()->reproduzir($diretorio)` (ou `FakeTransport::reproduzir()`) devolve essas respostas na mesma ordem. Assim os testes usam o formato exato que o seu SEI devolve:
+
+```php
+$sei = new SeiClient(new GravadorTransport(SeiClient::transportFromConfig($config), 'tests/Fixtures/sei'), SeiConfig::fromArray($config));
+// ... chamadas reais na homologação ...
+
+Sei::fake()->reproduzir(base_path('tests/Fixtures/sei'));
+```
+
+As gravações vão para o repositório, por isso passam por mascaramento: credenciais nunca são gravadas; CPF, CNPJ, e-mail e nomes de interessados, signatários e usuários saem como nos logs; textos livres que costumam citar pessoas (`Especificacao`, `Observacao`, `Descricao`, `Valor`...) viram `***`; conteúdos Base64 são resumidos. **Revise os arquivos antes de commitar.**
 
 ## 6. Segurança e LGPD
 
@@ -371,6 +467,19 @@ Com `SEI_LOG=true`, cada chamada é registrada com duração e argumentos, no ca
 |---|---|---|
 | `sei.log.dados_pessoais` | `mascarar` | `mascarar`, `remover` (omite o campo) ou `manter` |
 | `sei.log.chaves_extras` | `[]` | Outras chaves a tratar como dado pessoal |
+
+### Health check (`/up`)
+
+Com `SEI_SAUDE_UP=true`, a rota `/up` do Laravel responde 500 quando o circuit breaker de uma conexão monitorada está aberto, ou seja, quando o SEI parou de responder. O check não faz chamada de rede: só lê o estado do circuito no cache.
+
+```php
+'saude' => [
+    'up' => (bool) env('SEI_SAUDE_UP', false),
+    'conexoes' => null,   // null: a conexão padrão; ou ['default', 'orgao-b']
+],
+```
+
+Avalie antes de ligar: se o balanceador usa o `/up` para tirar instâncias do ar, uma queda do SEI derrubaria a aplicação inteira. Nesse caso, use um monitor separado. `php artisan sei:ping` também mostra se o circuito está aberto.
 
 ### Eventos
 
@@ -430,12 +539,23 @@ php artisan sei:operacoes:resolver "<chave>" --descartar                     # n
 
 Para facilitar a conferência, a biblioteca acrescenta à **Observação** do processo um identificador do sistema (`[RH Requerimento #123]`, configurável em `sei.integracao.identificador`).
 
-Em fila, use os jobs (sem retry automático para não duplicar):
+Em fila, use os jobs:
 
 ```php
 GerarProcessoSeiJob::dispatch($requerimento, $procedimento, $documentos);
 IncluirDocumentoSeiJob::dispatch($requerimento, $documento, "despacho-{$despacho->id}");
 ```
+
+Os jobs só repetem o que é seguro repetir (até 5 tentativas, com esperas de 30 s, 2 min, 5 min e 15 min):
+
+| Falha | O job |
+|---|---|
+| `ConnectionException` que chega ao job (a requisição não chegou ao SEI, ou a operação é idempotente), inclusive `CircuitoAbertoException` | volta à fila com backoff |
+| `OperacaoEmAndamentoException` (outra execução tem o lock) | volta à fila com backoff |
+| `OperacaoIncertaException` | falha de vez: confira com `sei:operacoes` |
+| `FaultException`, `AccessDeniedException`, dados inválidos | falha de vez |
+
+Com `dispatchSync` (ou a conexão `sync`) a exceção é relançada para quem chamou.
 
 Prefira `Documento::externo(idArquivo: ...)` (enviando o arquivo antes com `enviarArquivo()`) a colocar bytes de arquivos no payload da fila.
 
@@ -449,7 +569,7 @@ O SEI não notifica o sistema cliente. `sei:sincronizar` consulta os processos v
 
 | Evento | Quando |
 |---|---|
-| `NovoAndamentoSei` | O último andamento mudou (andamentos intermediários entre duas consultas não aparecem) |
+| `NovoAndamentoSei` | O processo recebeu andamentos: um evento para o último e, se configurado, um para cada andamento intermediário das tarefas escolhidas (`intermediario = true`) |
 | `ProcessoSeiTramitado` | Mudaram as unidades onde o processo está aberto (`entrou()`, `saiu()`) |
 | `ProcessoSeiConcluido` / `ProcessoSeiReaberto` | O processo foi concluído em todas as unidades / reaberto |
 | `DocumentoSeiAssinado` | O documento recebeu novas assinaturas |
@@ -464,6 +584,15 @@ Schedule::command('sei:sincronizar')->everyFifteenMinutes()->withoutOverlapping(
 - Processos abertos são consultados a cada 15 min e concluídos a cada 24 h (`sei.sincronizacao.intervalo*`).
 - Use uma conexão só de leitura nas consultas: `SEI_SINCRONIZACAO_CONEXAO=leitura`.
 - A primeira consulta de cada processo só registra o estado, sem eventos.
+- Por padrão só o **último** andamento gera evento: os intermediários entre duas consultas não aparecem. O `listarAndamentos` do SEI só lista filtrando por tarefa, então, para recebê-los, informe as tarefas que interessam ao sistema:
+
+  ```php
+  'sincronizacao' => [
+      'andamentos' => ['tarefas' => [65, 1000], 'atributos' => false],
+  ],
+  ```
+
+  Quando o último andamento muda, a sincronização busca essas tarefas e dispara um `NovoAndamentoSei` com `intermediario = true` para cada andamento entre o anterior e o atual, em ordem e antes do evento do último. Isso custa uma chamada a mais, só quando há mudança, e exige `listarAndamentos` liberada na conexão; se ela não estiver liberada ou o SEI recusar, vale só o último.
 - `php artisan sei:sincronizar --processo=12.1.000000077-4 --agora` sincroniza um processo na hora.
 
 ### Processos sigilosos
@@ -549,6 +678,7 @@ composer format            # Laravel Pint
 composer wsdl:baixar        # salva tests/Fixtures/sei-5.0.wsdl e sip.wsdl
 composer test               # o teste de contrato confere operação por operação com a WSDL real
 composer test:integration   # cria e conclui processos reais na homologação
+composer test:gravar        # o mesmo, gravando as respostas (mascaradas) em tests/Fixtures/gravacoes
 ```
 
 No teste de integração, abra o documento gerado no editor do SEI e confira os acentos: se aparecerem trocados, use `SEI_CONTEUDO_CHARSET=ISO-8859-1`.

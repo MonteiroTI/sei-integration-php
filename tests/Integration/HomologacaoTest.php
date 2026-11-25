@@ -11,14 +11,19 @@ declare(strict_types=1);
  *   composer test:integration
  *
  * ATENÇÃO: cria e conclui processos reais no ambiente informado.
+ *
+ * Com SEI_TEST_GRAVAR=<diretório> (ou composer test:gravar), as respostas são gravadas com
+ * dados pessoais mascarados, para reproduzir com Sei::fake()->reproduzir(<diretório>).
  */
 
+use MonteiroTi\Sei\Core\Config\SeiConfig;
 use MonteiroTi\Sei\Dto\ContatoRef;
 use MonteiroTi\Sei\Dto\Documento;
 use MonteiroTi\Sei\Dto\Procedimento;
 use MonteiroTi\Sei\Options\ConsultaDocumentoOptions;
 use MonteiroTi\Sei\Options\ConsultaProcedimentoOptions;
 use MonteiroTi\Sei\SeiClient;
+use MonteiroTi\Sei\Testing\GravadorTransport;
 
 function homologacao(): SeiClient
 {
@@ -28,7 +33,7 @@ function homologacao(): SeiClient
         }
     }
 
-    return SeiClient::create([
+    $config = [
         'wsdl' => getenv('SEI_TEST_WSDL'),
         'sigla_sistema' => getenv('SEI_TEST_SIGLA'),
         'identificacao_servico' => getenv('SEI_TEST_CHAVE'),
@@ -36,7 +41,15 @@ function homologacao(): SeiClient
         'conteudo_charset' => getenv('SEI_TEST_CHARSET') ?: 'UTF-8',
         'verify_ssl' => getenv('SEI_TEST_VERIFY_SSL') !== '0',
         'wsdl_cache' => WSDL_CACHE_NONE,
-    ]);
+    ];
+
+    // composer test:gravar: grava as respostas (mascaradas) para reproduzir com Sei::fake()->reproduzir()
+    $gravar = getenv('SEI_TEST_GRAVAR');
+    if (is_string($gravar) && $gravar !== '') {
+        return new SeiClient(new GravadorTransport(SeiClient::transportFromConfig($config), $gravar), SeiConfig::fromArray($config));
+    }
+
+    return SeiClient::create($config);
 }
 
 it('lista unidades liberadas', function () {

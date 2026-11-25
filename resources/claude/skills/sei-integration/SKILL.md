@@ -169,11 +169,11 @@ final class RequerimentoSei
 ```php
 use MonteiroTi\Sei\Laravel\Jobs\{GerarProcessoSeiJob, IncluirDocumentoSeiJob};
 
-GerarProcessoSeiJob::dispatch($req, $procedimento, $documentos);           // tries = 1, único por registro
+GerarProcessoSeiJob::dispatch($req, $procedimento, $documentos);           // único por registro
 IncluirDocumentoSeiJob::dispatch($req, $documento, "despacho-{$despacho->id}");
 ```
 
-Os jobs **não** têm retry automático. Se precisar de retry, configure-o só para `ConnectionException` com `possivelmenteEnviada === false` ou `FaultException` corrigida: o ledger de idempotência já protege contra duplicidade nesses casos.
+Os jobs repetem sozinhos (até 5 tentativas, com backoff) só o que é seguro: `ConnectionException` que chega ao job (a idempotência já converteu as duvidosas em `OperacaoIncertaException`), `CircuitoAbertoException` e `OperacaoEmAndamentoException`. `OperacaoIncertaException` e erros de negócio (`FaultException`, `AccessDeniedException`) fazem o job falhar de vez. **Não** sobrescreva `$tries`/`backoff` para repetir operações incertas: elas exigem conferência (`sei:operacoes`).
 
 ### 4.6 Reagir a mudanças no SEI
 
@@ -195,7 +195,7 @@ final class AtualizarStatusRequerimento
 
 | Evento | Propriedades |
 |---|---|
-| `NovoAndamentoSei` | `processo`, `andamento` (último andamento; intermediários entre duas consultas não aparecem) |
+| `NovoAndamentoSei` | `processo`, `andamento`, `intermediario`. Sempre há um evento para o último andamento; os intermediários só aparecem para as tarefas listadas em `sei.sincronizacao.andamentos.tarefas` (o `listarAndamentos` do SEI exige filtro por tarefa) |
 | `ProcessoSeiTramitado` | `processo`, `antes`, `depois` (IDs de unidades), `entrou()`, `saiu()` |
 | `ProcessoSeiConcluido` | `processo`, `andamentoConclusao` |
 | `ProcessoSeiReaberto` | `processo` |
@@ -271,6 +271,9 @@ it('abre o processo do requerimento', function () {
 - Asserções: `assertCalled($op, ?fn)`, `assertCalledTimes($op, $n)`, `assertNotCalled($op)`, `assertNothingCalled()`. Os argumentos recebidos são nomeados como no manual, já com `SiglaSistema`, `IdentificacaoServico` e `IdUnidade`.
 - Para testar timeout: `->respond('gerarProcedimento', new \MonteiroTi\Sei\Core\Exceptions\ConnectionException('timeout', 'gerarProcedimento', possivelmenteEnviada: true))` e espere `OperacaoIncertaException`.
 - Para testar a sincronização: crie um `SeiProcesso`, responda `consultarProcedimento` duas vezes (a primeira só registra o estado) e use `Event::fake([...eventos de Sincronizacao])`.
+- Prefira `MonteiroTi\Sei\Testing\Respostas` a montar arrays à mão: `Respostas::processoGerado('12.1.000000077-4', documentos: [Respostas::documentoIncluido('0000001')])`, `Respostas::processo(...)`, `Respostas::documento(...)`, `Respostas::andamento(...)`, `Respostas::assinatura(...)`.
+- Para fluxos com várias chamadas, use o SEI simulado: `$fake = Sei::fake()->simular()`. Ele gera protocolos (`12.1.000000001-1`, documentos `0000001`...) e responde às consultas com o que foi criado. Mude o estado com `$fake->sei()->tramitar($protocolo, '110000015')`, `->assinar('0000001', 'Maria')`, `->concluir($protocolo)` e `->lancarAndamento(...)`; confira a ordem com `assertCalledInOrder([...])`. Respostas de `respond()` têm prioridade sobre o simulador.
+- Respostas reais: grave na homologação com `MonteiroTi\Sei\Testing\GravadorTransport` (dados pessoais mascarados) e reproduza com `Sei::fake()->reproduzir($diretorio)`. Revise as gravações antes de commitar.
 
 ## 7. Diagnóstico rápido
 
